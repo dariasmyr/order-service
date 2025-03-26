@@ -1,0 +1,6 @@
+.idea
+config/config_local.yaml
+storage/
+build/
+data/
+app.log
