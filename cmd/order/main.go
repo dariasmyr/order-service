@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"golang.org/x/net/websocket"
 	"log"
 	"log/slog"
@@ -42,8 +41,6 @@ func main() {
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
 
 	headers := http.Header{}
-	//headers.Add("Authorization", cfg.APIKey)
-
 	originURL, err := url.Parse("http://localhost/")
 	if err != nil {
 		log.Fatal("Invalid origin URL:", err)
@@ -95,6 +92,7 @@ func main() {
 		}
 	}()
 
+	var buffer []byte
 	for {
 		select {
 		case <-ctx.Done():
@@ -112,7 +110,15 @@ func main() {
 				log.Println("Read error:", err)
 				return
 			}
-			fmt.Printf("Received: %s\n\n", msg[:n])
+			buffer = append(buffer, msg[:n]...)
+
+			var jsonObj interface{}
+			if err := json.Unmarshal(buffer, &jsonObj); err == nil {
+				logger.Info("Received full message", "message", string(buffer))
+				buffer = nil
+			} else {
+				log.Println("Message still incomplete, accumulating more data...")
+			}
 		}
 	}
 }
