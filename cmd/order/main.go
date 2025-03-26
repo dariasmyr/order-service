@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 const (
@@ -52,7 +53,6 @@ func main() {
 		log.Fatal("Invalid location URL:", err)
 	}
 
-	// Подключение к WebSocket
 	ws, err := websocket.DialConfig(&websocket.Config{
 		Location: locationURL,
 		Origin:   originURL,
@@ -65,22 +65,19 @@ func main() {
 		logger.Info("Connected to WebSocket")
 	}
 
-	// Формируем сообщение подписки
 	subscription := SubscriptionMessage{
 		Type:                  "hello",
 		Heartbeat:             true,
 		Apikey:                cfg.APIKey,
-		SubscribeDataType:     []string{"trade", "book"},
+		SubscribeDataType:     []string{"book"},
 		SubscribeFilterSymbol: []string{"COINBASE_SPOT_BTC_USD", "ETH-USD"},
 	}
 
-	// Преобразуем структуру в JSON
 	subscriptionJSON, err := json.Marshal(subscription)
 	if err != nil {
 		log.Fatal("Failed to encode subscription message:", err)
 	}
 
-	// Отправляем подписку
 	_, err = ws.Write(subscriptionJSON)
 	if err != nil {
 		log.Fatal("Failed to send subscription:", err)
@@ -88,7 +85,6 @@ func main() {
 		logger.Info("Subscription sent")
 	}
 
-	// Обработчик сигналов для завершения работы
 	go func() {
 		<-stop
 		logger.Info("Gracefully stopping")
@@ -99,19 +95,24 @@ func main() {
 		}
 	}()
 
-	// Читаем входящие сообщения
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-time.After(5 * time.Second):
+			log.Println("Warning: No data received for 5 seconds")
 		default:
 			var msg = make([]byte, 4096)
+			err := ws.SetReadDeadline(time.Now().Add(10 * time.Second))
+			if err != nil {
+				return
+			}
 			n, err := ws.Read(msg)
 			if err != nil {
 				log.Println("Read error:", err)
 				return
 			}
-			fmt.Printf("Received: %s\n", msg[:n])
+			fmt.Printf("Received: %s\n\n", msg[:n])
 		}
 	}
 }
