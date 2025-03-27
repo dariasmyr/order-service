@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"golang.org/x/net/websocket"
@@ -92,7 +93,9 @@ func main() {
 		}
 	}()
 
-	var buffer []byte
+	reader := bufio.NewReader(ws)
+	decoder := json.NewDecoder(reader)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -100,45 +103,32 @@ func main() {
 		case <-time.After(5 * time.Second):
 			log.Println("Warning: No data received for 5 seconds")
 		default:
-			var msg = make([]byte, 4096)
-			err := ws.SetReadDeadline(time.Now().Add(10 * time.Second))
-			if err != nil {
-				return
-			}
-			n, err := ws.Read(msg)
-			if err != nil {
-				log.Println("Read error:", err)
-				return
-			}
-			buffer = append(buffer, msg[:n]...)
-
 			var jsonObj interface{}
-			if err := json.Unmarshal(buffer, &jsonObj); err == nil {
-				logger.Info("Received full message", "message", string(buffer))
-				buffer = nil
-			} else {
-				log.Println("Message still incomplete, accumulating more data...")
+			if err := decoder.Decode(&jsonObj); err != nil {
+				log.Println("JSON decode error:", err)
+				continue
 			}
+			logger.Info("Received full message", "message", jsonObj)
 		}
 	}
 }
 
 func setupLogger(env string) *slog.Logger {
-	var log *slog.Logger
+	var logger *slog.Logger
 	switch env {
 	case envLocal:
-		log = slog.New(
+		logger = slog.New(
 			slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
 		)
 	case envDev:
-		log = slog.New(
+		logger = slog.New(
 			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
 		)
 	case envProd:
-		log = slog.New(
+		logger = slog.New(
 			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
 		)
 	}
 
-	return log
+	return logger
 }
