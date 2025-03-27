@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"oder-service/config"
+	"oder-service/models"
 	"os"
 	"os/signal"
 	"syscall"
@@ -103,12 +104,12 @@ func main() {
 		case <-time.After(5 * time.Second):
 			log.Println("Warning: No data received for 5 seconds")
 		default:
-			var jsonObj interface{}
-			if err := decoder.Decode(&jsonObj); err != nil {
+			var order models.OrderBookMessage
+			if err := decoder.Decode(&order); err != nil {
 				log.Println("JSON decode error:", err)
 				continue
 			}
-			logger.Info("Received full message", "message", jsonObj)
+			logger.Info("Received order", "order", order)
 		}
 	}
 }
