@@ -1,149 +1,155 @@
 package rbtree
 
+type Color int
+
 const (
-	RED   = true
-	BLACK = false
+	RED Color = iota
+	BLACK
 )
 
 // Node represents a node in the red-black tree.
 type Node struct {
-	price  float64
-	size   float64
-	color  bool
-	left   *Node
-	right  *Node
-	parent *Node
+	Key    string
+	Color  Color
+	Left   *Node
+	Right  *Node
+	Parent *Node
 }
 
 type RBTree struct {
-	root *Node
+	Root *Node
 }
 
-func (t *RBTree) leftRotate(x *Node) {
-	y := x.right
-	x.right = y.left
+func (tree *RBTree) rotateLeft(n *Node) *Node {
+	rChild := n.Right
+	n.Right = rChild.Left
 
-	if y.left != nil {
-		y.left.parent = x
+	if rChild.Left != nil {
+		rChild.Left.Parent = n
 	}
-	y.parent = x.parent
 
-	if x.parent == nil {
-		t.root = y
-	} else if x == x.parent.left {
-		x.parent.left = y
+	rChild.Parent = n.Parent
+	if n.Parent == nil {
+		tree.Root = rChild
+	} else if n == n.Parent.Left {
+		n.Parent.Left = rChild
 	} else {
-		x.parent.right = y
+		n.Parent.Right = rChild
 	}
 
-	y.left = x
-	x.parent = y
+	rChild.Left = n
+	n.Parent = rChild
+	return rChild
 }
 
-func (t *RBTree) rightRotate(y *Node) {
-	x := y.left
-	y.left = x.right
+func (tree *RBTree) rotateRight(n *Node) *Node {
+	lChild := n.Left
+	n.Left = lChild.Right
 
-	if x.right != nil {
-		x.right.parent = y
+	if lChild.Right != nil {
+		lChild.Right.Parent = n
 	}
-	x.parent = y.parent
 
-	if y.parent == nil {
-		t.root = x
-	} else if y == y.parent.right {
-		y.parent.right = x
+	lChild.Parent = n.Parent
+	if n.Parent == nil {
+		tree.Root = lChild
+	} else if n == n.Parent.Right {
+		n.Parent.Right = lChild
 	} else {
-		y.parent.left = x
+		n.Parent.Left = lChild
 	}
 
-	x.right = y
-	y.parent = x
+	lChild.Right = n
+	n.Parent = lChild
+	return lChild
 }
 
-func (t *RBTree) insert(price, size float64) {
-	newNode := &Node{price: price, size: size, color: RED}
-	var y *Node
-	x := t.root
+func (tree *RBTree) Insert(key string) {
+	newNode := &Node{
+		Key:   key,
+		Color: RED,
+	}
 
-	for x != nil {
-		y = x
-		if newNode.price < x.price {
-			x = x.left
+	if tree.Root == nil {
+		tree.Root = newNode
+	} else {
+		currentNode := tree.Root
+		var parentNode *Node
+		for currentNode != nil {
+			parentNode = currentNode
+			if key < currentNode.Key {
+				currentNode = currentNode.Left
+			} else {
+				currentNode = currentNode.Right
+			}
+		}
+
+		newNode.Parent = parentNode
+		if newNode.Key < parentNode.Key {
+			parentNode.Left = newNode
 		} else {
-			x = x.right
+			parentNode.Right = newNode
 		}
 	}
 
-	newNode.parent = y
-	if y == nil {
-		t.root = newNode
-	} else if newNode.price < y.price {
-		y.left = newNode
-	} else {
-		y.right = newNode
-	}
-
-	t.fixInsert(newNode)
+	tree.fixInsert(newNode)
 }
 
-func (t *RBTree) fixInsert(z *Node) {
-	for z.parent != nil && z.parent.color == RED {
-		if z.parent == z.parent.parent.left {
-			y := z.parent.parent.right
-			if y != nil && y.color == RED {
-				z.parent.color = BLACK
-				y.color = BLACK
-				z.parent.parent.color = RED
-				z = z.parent.parent
+func (tree *RBTree) fixInsert(n *Node) {
+	parentNode := n.Parent
+
+	// While the parent node is red, we need to restructuring the tree and / or recoloring nodes.
+	for parentNode != nil && parentNode.Color == RED {
+		grandparentNode := parentNode.Parent
+
+		// Parent node is the left child of the grandparent node.
+		if parentNode == grandparentNode.Left {
+			uncleNode := grandparentNode.Right
+
+			// Case 1: The uncle (right) node is red. Recolor the parent and uncle nodes to black and the grandparent node to red.
+			if uncleNode != nil && uncleNode.Color == RED {
+				grandparentNode.Color = RED
+				parentNode.Color = BLACK
+				uncleNode.Color = BLACK
+				n = grandparentNode
 			} else {
-				if z == z.parent.right {
-					z = z.parent
-					t.leftRotate(z)
+				// Case 2: New Node is the right child of the grandparent node. Perform a left rotation on the parent node.
+				if n == parentNode.Right {
+					n = parentNode
+					tree.rotateLeft(n)
 				}
-				z.parent.color = BLACK
-				z.parent.parent.color = RED
-				t.rightRotate(z.parent.parent)
+
+				// Case 3: New Node is the left child of the grandparent node. Perform a right rotation on the grandparent node.
+				parentNode.Color = BLACK
+				grandparentNode.Color = RED
+				tree.rotateRight(grandparentNode)
 			}
 		} else {
-			y := z.parent.parent.left
-			if y != nil && y.color == RED {
-				z.parent.color = BLACK
-				y.color = BLACK
-				z.parent.parent.color = RED
-				z = z.parent.parent
+			// Parent node is the right child of the grandparent node.
+			uncleNode := grandparentNode.Left
+
+			// Case 1: The uncle (left) node is red. Recolor the parent and uncle nodes to black and the grandparent node to red.
+			if uncleNode != nil && uncleNode.Color == RED {
+				grandparentNode.Color = RED
+				parentNode.Color = BLACK
+				uncleNode.Color = BLACK
+				n = grandparentNode
 			} else {
-				if z == z.parent.left {
-					z = z.parent
-					t.rightRotate(z)
+				// Case 2: New Node is the left child of the grandparent node. Perform a right rotation on the parent node.
+				if n == parentNode.Left {
+					n = parentNode
+					tree.rotateRight(n)
 				}
-				z.parent.color = BLACK
-				z.parent.parent.color = RED
-				t.leftRotate(z.parent.parent)
+
+				// Case 3: New Node is the right child of the grandparent node. Perform a left rotation on the grandparent node.
+				parentNode.Color = BLACK
+				grandparentNode.Color = RED
+				tree.rotateLeft(grandparentNode)
 			}
 		}
-	}
-	t.root.color = BLACK
-}
 
-func (t *RBTree) getMin() *Node {
-	x := t.root
-	if x == nil {
-		return nil
+		parentNode = n.Parent
 	}
-	for x.left != nil {
-		x = x.left
-	}
-	return x
-}
 
-func (t *RBTree) getMax() *Node {
-	x := t.root
-	if x == nil {
-		return nil
-	}
-	for x.right != nil {
-		x = x.right
-	}
-	return x
+	tree.Root.Color = BLACK
 }
