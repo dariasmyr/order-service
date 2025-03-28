@@ -7,17 +7,65 @@ const (
 	BLACK
 )
 
+type PriceLevel struct {
+	Type   string
+	Status string
+	ID     string
+	Price  float64
+	Volume float64
+}
+
+type OrderBook struct {
+	BidTree *RBTree
+	AskTree *RBTree
+}
+
+func NewOrderBook() *OrderBook {
+	return &OrderBook{
+		BidTree: &RBTree{},
+		AskTree: &RBTree{},
+	}
+}
+
+func (ob *OrderBook) InsertOrder(order *PriceLevel) {
+	if order.Type == "ask" {
+		ob.AskTree.Insert(order)
+	} else {
+		ob.BidTree.Insert(order)
+	}
+}
+
+func (pl *PriceLevel) Compare(other *PriceLevel) int {
+	switch pl.Type {
+	case "ask":
+		if pl.Price < other.Price {
+			return -1 // pl is less than other
+		} else if pl.Price > other.Price {
+			return 1 // pl is greater than other
+		}
+	case "bid":
+		if pl.Price > other.Price {
+			return -1 // pl is less than other
+		} else if pl.Price < other.Price {
+			return 1 // pl is greater than other
+		}
+	}
+	return 0
+}
+
 // Node represents a node in the red-black tree.
 type Node struct {
-	Key    string
-	Color  Color
-	Left   *Node
-	Right  *Node
-	Parent *Node
+	PriceLevel *PriceLevel
+	Key        string
+	Color      Color
+	Left       *Node
+	Right      *Node
+	Parent     *Node
 }
 
 type RBTree struct {
-	Root *Node
+	Root           *Node
+	BestPriceLevel *PriceLevel
 }
 
 func (tree *RBTree) rotateLeft(n *Node) *Node {
@@ -64,10 +112,11 @@ func (tree *RBTree) rotateRight(n *Node) *Node {
 	return lChild
 }
 
-func (tree *RBTree) Insert(key string) {
+func (tree *RBTree) Insert(order *PriceLevel) {
 	newNode := &Node{
-		Key:   key,
-		Color: RED,
+		PriceLevel: order,
+		Key:        order.ID,
+		Color:      RED,
 	}
 
 	if tree.Root == nil {
@@ -77,7 +126,7 @@ func (tree *RBTree) Insert(key string) {
 		var parentNode *Node
 		for currentNode != nil {
 			parentNode = currentNode
-			if key < currentNode.Key {
+			if order.Compare(currentNode.PriceLevel) < 0 {
 				currentNode = currentNode.Left
 			} else {
 				currentNode = currentNode.Right
@@ -85,7 +134,7 @@ func (tree *RBTree) Insert(key string) {
 		}
 
 		newNode.Parent = parentNode
-		if newNode.Key < parentNode.Key {
+		if order.Compare(parentNode.PriceLevel) < 0 {
 			parentNode.Left = newNode
 		} else {
 			parentNode.Right = newNode
@@ -93,6 +142,10 @@ func (tree *RBTree) Insert(key string) {
 	}
 
 	tree.fixInsert(newNode)
+
+	if tree.BestPriceLevel == nil || order.Compare(tree.BestPriceLevel) < 0 {
+		tree.BestPriceLevel = order
+	}
 }
 
 func (tree *RBTree) fixInsert(n *Node) {
@@ -154,8 +207,8 @@ func (tree *RBTree) fixInsert(n *Node) {
 	tree.Root.Color = BLACK
 }
 
-func (tree *RBTree) Remove(key string) {
-	nodeToDelete := tree.findNodeByKey(tree.Root, key)
+func (tree *RBTree) Remove(order *PriceLevel) {
+	nodeToDelete := tree.findNode(order.ID)
 	if nodeToDelete == nil {
 		return // Node not found
 	}
@@ -196,6 +249,8 @@ func (tree *RBTree) Remove(key string) {
 	if originalColor == BLACK {
 		tree.fixRemove(child)
 	}
+
+	tree.UpdateBestPriceLevel()
 }
 
 func (tree *RBTree) transplant(u, v *Node) {
@@ -277,15 +332,48 @@ func (tree *RBTree) minimum(node *Node) *Node {
 	return node
 }
 
-func (tree *RBTree) findNodeByKey(node *Node, key string) *Node {
-	for node != nil {
-		if key == node.Key {
-			return node
-		} else if key < node.Key {
-			node = node.Left
+func (tree *RBTree) findNode(orderID string) *Node {
+	currentNode := tree.Root
+	for currentNode != nil {
+		if orderID == currentNode.Key {
+			return currentNode
+		} else if orderID < currentNode.Key {
+			currentNode = currentNode.Left
 		} else {
-			node = node.Right
+			currentNode = currentNode.Right
 		}
 	}
 	return nil
+}
+
+func (tree *RBTree) UpdateBestPriceLevel() {
+	if tree.Root != nil {
+		tree.BestPriceLevel = nil
+		return
+	}
+
+	tree.BestPriceLevel = tree.findBestPriceLevel(tree.Root)
+}
+
+func (tree *RBTree) findBestPriceLevel(n *Node) *PriceLevel {
+	if n == nil {
+		return nil
+	}
+
+	bestPriceNode := n.PriceLevel
+	if n.Left != nil {
+		leftBest := tree.findBestPriceLevel(n.Left)
+		if leftBest != nil && leftBest.Compare(bestPriceNode) < 0 {
+			bestPriceNode = leftBest
+		}
+	}
+
+	if n.Right != nil {
+		rightBest := tree.findBestPriceLevel(n.Right)
+		if rightBest != nil && rightBest.Compare(bestPriceNode) < 0 {
+			bestPriceNode = rightBest
+		}
+	}
+
+	return bestPriceNode
 }
