@@ -1,4 +1,4 @@
-package rbtree
+package orderbook
 
 import (
 	"fmt"
