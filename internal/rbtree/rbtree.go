@@ -116,19 +116,19 @@ func (ob *OrderBook) InsertOrder(order *Order) {
 	}
 }
 
-func (pl *Order) Compare(otherPrice float64) int {
-	switch pl.Type {
+func (o *Order) Compare(otherPrice float64) int {
+	switch o.Type {
 	case "ask": // asks (sellers) are sorted in ascending order
-		if pl.Price < otherPrice {
+		if o.Price < otherPrice {
 			return -1 // pl is less than other
-		} else if pl.Price > otherPrice {
+		} else if o.Price > otherPrice {
 			return 1 // pl is greater than other
 		}
 	case "bid": // bids (buyers) are sorted in descending order
-		if pl.Price > otherPrice {
-			return -1 // pl is less than other
-		} else if pl.Price < otherPrice {
-			return 1 // pl is greater than other
+		if o.Price > otherPrice {
+			return -1 // pl is greater than other
+		} else if o.Price < otherPrice {
+			return 1 // pl is less than other
 		}
 	}
 	return 0 // pl is equal to other
@@ -316,7 +316,7 @@ func (tree *RBTree) fixInsert(n *Node) {
 }
 
 func (tree *RBTree) Remove(order *Order) {
-	nodeToDelete := tree.findNode(order.Price)
+	nodeToDelete := tree.findNode(order.Price, order.Type)
 	if nodeToDelete == nil {
 		return // Node not found
 	}
@@ -447,15 +447,23 @@ func (tree *RBTree) minimum(node *Node) *Node {
 	return node
 }
 
-func (tree *RBTree) findNode(price float64) *Node {
+func (tree *RBTree) findNode(price float64, orderType string) *Node {
 	currentNode := tree.Root
 	for currentNode != nil {
 		if price == currentNode.Key {
 			return currentNode
 		} else if price < currentNode.Key {
-			currentNode = currentNode.Left
+			if orderType == "bid" {
+				currentNode = currentNode.Right
+			} else if orderType == "ask" {
+				currentNode = currentNode.Left
+			}
 		} else {
-			currentNode = currentNode.Right
+			if orderType == "bid" {
+				currentNode = currentNode.Left
+			} else if orderType == "ask" {
+				currentNode = currentNode.Right
+			}
 		}
 	}
 	return nil
@@ -502,7 +510,7 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 		fmt.Printf("Trade executed: %s %f @ %f\n", order.Type, tradeQty, bestOppositeOrder.Price)
 
 		// Remove the opposite order if its volume is zero
-		if bestOppositeOrder.Volume == 0 {
+		if bestOppositeOrder.Volume <= 0.000000 {
 			oppositeTree.Remove(bestOppositeOrder)
 			break
 		}
