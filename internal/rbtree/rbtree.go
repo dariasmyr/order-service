@@ -32,6 +32,61 @@ func NewOrderBook() *OrderBook {
 	}
 }
 
+type OrderNode struct {
+	Order *PriceLevel
+	Next  *OrderNode
+	Prev  *OrderNode
+}
+
+type OrderList struct {
+	Head *OrderNode
+	Tail *OrderNode
+}
+
+func (ol *OrderList) Append(order *PriceLevel) {
+	newNode := &OrderNode{Order: order}
+	if ol.Tail == nil {
+		ol.Head = newNode
+		ol.Tail = newNode
+	} else {
+		ol.Tail.Next = newNode
+		newNode.Prev = ol.Tail
+		ol.Tail = newNode
+	}
+}
+
+func (ol *OrderList) Pop() *PriceLevel {
+	if ol.Head == nil {
+		return nil
+	}
+	order := ol.Head.Order
+	ol.Head = ol.Head.Next
+	if ol.Head != nil {
+		ol.Head.Prev = nil
+	}
+	return order
+}
+
+func (ol *OrderList) Remove(order *PriceLevel) {
+	node := ol.Head
+	for node != nil {
+		if node.Order.ID == order.ID {
+			if node.Prev != nil {
+				node.Prev.Next = node.Next
+			} else {
+				ol.Head = node.Next
+			}
+			if node.Next != nil {
+				node.Next.Prev = node.Prev
+			} else {
+				ol.Tail = node.Prev
+			}
+			return
+		}
+		node = node.Next
+	}
+}
+
 func (ob *OrderBook) InsertOrder(order *PriceLevel) {
 	var oppositeTree *RBTree
 	var sameTree *RBTree
@@ -45,7 +100,7 @@ func (ob *OrderBook) InsertOrder(order *PriceLevel) {
 	}
 
 	// Check if opposite tree exists and has best orders to match
-	bestOppositeOrder := oppositeTree.BestPriceLevel
+	bestOppositeOrder := oppositeTree.BestPriceOrder
 	if bestOppositeOrder != nil &&
 		((order.Type == "bid" && order.Price >= bestOppositeOrder.Price) ||
 			(order.Type == "ask" && order.Price <= bestOppositeOrder.Price)) {
@@ -57,37 +112,37 @@ func (ob *OrderBook) InsertOrder(order *PriceLevel) {
 	}
 }
 
-func (pl *PriceLevel) Compare(other *PriceLevel) int {
+func (pl *PriceLevel) Compare(otherPrice float64) int {
 	switch pl.Type {
-	case "ask":
-		if pl.Price < other.Price {
+	case "ask": // asks (sellers) are sorted in ascending order
+		if pl.Price < otherPrice {
 			return -1 // pl is less than other
-		} else if pl.Price > other.Price {
+		} else if pl.Price > otherPrice {
 			return 1 // pl is greater than other
 		}
-	case "bid":
-		if pl.Price > other.Price {
+	case "bid": // bids (buyers) are sorted in descending order
+		if pl.Price > otherPrice {
 			return -1 // pl is less than other
-		} else if pl.Price < other.Price {
+		} else if pl.Price < otherPrice {
 			return 1 // pl is greater than other
 		}
 	}
-	return 0
+	return 0 // pl is equal to other
 }
 
 // Node represents a node in the red-black tree.
 type Node struct {
-	PriceLevel *PriceLevel
-	Key        string
-	Color      Color
-	Left       *Node
-	Right      *Node
-	Parent     *Node
+	OrderList *OrderList
+	Key       float64
+	Color     Color
+	Left      *Node
+	Right     *Node
+	Parent    *Node
 }
 
 type RBTree struct {
 	Root           *Node
-	BestPriceLevel *PriceLevel
+	BestPriceOrder *PriceLevel
 }
 
 func (tree *RBTree) rotateLeft(n *Node) *Node {
@@ -135,39 +190,56 @@ func (tree *RBTree) rotateRight(n *Node) *Node {
 }
 
 func (tree *RBTree) Insert(order *PriceLevel) {
-	newNode := &Node{
-		PriceLevel: order,
-		Key:        order.ID,
-		Color:      RED,
-	}
+	// Search for the node to insert the new order in the tree
+	currentNode := tree.Root
 
-	if tree.Root == nil {
+	if currentNode == nil {
+		// If the tree is empty, create a new node and insert the order
+		newNode := &Node{
+			Key:       order.Price,
+			OrderList: &OrderList{}, // Create a new order list and append the order
+			Color:     RED,
+		}
 		tree.Root = newNode
-	} else {
-		currentNode := tree.Root
-		var parentNode *Node
-		for currentNode != nil {
-			parentNode = currentNode
-			if order.Compare(currentNode.PriceLevel) < 0 {
-				currentNode = currentNode.Left
-			} else {
-				currentNode = currentNode.Right
-			}
-		}
+		tree.UpdateBestPriceOrder() // Update the best price level
+		return
+	}
 
-		newNode.Parent = parentNode
-		if order.Compare(parentNode.PriceLevel) < 0 {
-			parentNode.Left = newNode
+	var parentNode *Node
+	for currentNode != nil {
+		parentNode = currentNode
+		if order.Compare(currentNode.Key) < 0 {
+			currentNode = currentNode.Left // Move to the left child (new order is less than the current node)
+		} else if order.Compare(currentNode.Key) > 0 {
+			currentNode = currentNode.Right // Move to the right child (new order is greater than the current node)
 		} else {
-			parentNode.Right = newNode
+			// Found the node with the same price level, append the order to the order list
+			currentNode.OrderList.Append(order)
+			tree.UpdateBestPriceOrder() // Update the best price level
+			return
 		}
 	}
 
-	tree.fixInsert(newNode)
-
-	if tree.BestPriceLevel == nil || order.Compare(tree.BestPriceLevel) < 0 {
-		tree.BestPriceLevel = order
+	// If the node to insert the new order is not found, create a new node and insert the order
+	newNode := &Node{
+		Key:       order.Price,
+		OrderList: &OrderList{}, // Create a new order list and append the order
+		Color:     RED,
 	}
+	newNode.OrderList.Append(order)
+
+	// Add the new node to the parent node
+	newNode.Parent = parentNode
+
+	if order.Compare(parentNode.Key) < 0 {
+		parentNode.Left = newNode
+	} else {
+		parentNode.Right = newNode
+	}
+
+	tree.fixInsert(newNode) // Fix the tree after inserting the new node
+
+	tree.UpdateBestPriceOrder() // Update the best price level
 }
 
 func (tree *RBTree) fixInsert(n *Node) {
@@ -228,53 +300,60 @@ func (tree *RBTree) fixInsert(n *Node) {
 
 	tree.Root.Color = BLACK
 
-	tree.UpdateBestPriceLevel()
+	tree.UpdateBestPriceOrder()
 }
 
 func (tree *RBTree) Remove(order *PriceLevel) {
-	nodeToDelete := tree.findNode(order.ID)
+	nodeToDelete := tree.findNode(order.Price)
 	if nodeToDelete == nil {
 		return // Node not found
 	}
 
-	// Save the original color of the node to be deleted
-	originalColor := nodeToDelete.Color
+	// Remove the order from the order list
+	nodeToDelete.OrderList.Remove(order)
 
-	var child *Node
-	if nodeToDelete.Left == nil {
-		// Simple deletion of a node with one child (right). The child replaces the deleted node.
-		child = nodeToDelete.Right
-		tree.transplant(nodeToDelete, nodeToDelete.Right)
-	} else if nodeToDelete.Right == nil {
-		// Simple deletion of a node with one child (left). The child replaces the deleted node.
-		child = nodeToDelete.Left
-		tree.transplant(nodeToDelete, nodeToDelete.Left)
-	} else {
-		// Node to be deleted has two children. Find the successor node and replace the deleted node with it.
-		successor := tree.minimum(nodeToDelete.Right)
-		// Found the successor node. Save its original color and its right child.
-		originalColor = successor.Color
-		child = successor.Right
+	// Check if the order list is empty
+	if nodeToDelete.OrderList.Head == nil {
+		// Order list is empty (no orders at this price level), remove the node
+		// Save the original color of the node to be deleted
+		originalColor := nodeToDelete.Color
 
-		if successor.Parent == nodeToDelete {
-			child.Parent = successor
+		var child *Node
+		if nodeToDelete.Left == nil {
+			// Simple deletion of a node with one child (right). The child replaces the deleted node.
+			child = nodeToDelete.Right
+			tree.transplant(nodeToDelete, nodeToDelete.Right)
+		} else if nodeToDelete.Right == nil {
+			// Simple deletion of a node with one child (left). The child replaces the deleted node.
+			child = nodeToDelete.Left
+			tree.transplant(nodeToDelete, nodeToDelete.Left)
 		} else {
-			tree.transplant(successor, successor.Right)
-			successor.Right = nodeToDelete.Right
-			successor.Right.Parent = successor
+			// Node to be deleted has two children. Find the successor node and replace the deleted node with it.
+			successor := tree.minimum(nodeToDelete.Right)
+			// Found the successor node. Save its original color and its right child.
+			originalColor = successor.Color
+			child = successor.Right
+
+			if successor.Parent == nodeToDelete {
+				child.Parent = successor
+			} else {
+				tree.transplant(successor, successor.Right)
+				successor.Right = nodeToDelete.Right
+				successor.Right.Parent = successor
+			}
+
+			tree.transplant(nodeToDelete, successor)
+			successor.Left = nodeToDelete.Left
+			successor.Left.Parent = successor
+			successor.Color = nodeToDelete.Color
 		}
 
-		tree.transplant(nodeToDelete, successor)
-		successor.Left = nodeToDelete.Left
-		successor.Left.Parent = successor
-		successor.Color = nodeToDelete.Color
-	}
+		if originalColor == BLACK {
+			tree.fixRemove(child)
+		}
 
-	if originalColor == BLACK {
-		tree.fixRemove(child)
+		tree.UpdateBestPriceOrder()
 	}
-
-	tree.UpdateBestPriceLevel()
 }
 
 func (tree *RBTree) transplant(u, v *Node) {
@@ -356,12 +435,12 @@ func (tree *RBTree) minimum(node *Node) *Node {
 	return node
 }
 
-func (tree *RBTree) findNode(orderID string) *Node {
+func (tree *RBTree) findNode(price float64) *Node {
 	currentNode := tree.Root
 	for currentNode != nil {
-		if orderID == currentNode.Key {
+		if price == currentNode.Key {
 			return currentNode
-		} else if orderID < currentNode.Key {
+		} else if price < currentNode.Key {
 			currentNode = currentNode.Left
 		} else {
 			currentNode = currentNode.Right
@@ -370,41 +449,24 @@ func (tree *RBTree) findNode(orderID string) *Node {
 	return nil
 }
 
-func (tree *RBTree) UpdateBestPriceLevel() {
+func (tree *RBTree) UpdateBestPriceOrder() {
 	if tree.Root != nil {
-		tree.BestPriceLevel = nil
+		tree.BestPriceOrder = nil
 		return
 	}
 
-	tree.BestPriceLevel = tree.findBestPriceLevel(tree.Root)
-}
-
-func (tree *RBTree) findBestPriceLevel(n *Node) *PriceLevel {
-	if n == nil {
-		return nil
+	// Find the best price order in the tree, (i.e., the first order in the linked list)
+	bestPriceOrder := tree.Root.OrderList.Head.Order
+	if bestPriceOrder != nil {
+		tree.BestPriceOrder = bestPriceOrder
+		return
 	}
-
-	bestPriceNode := n.PriceLevel
-	if n.Left != nil {
-		leftBest := tree.findBestPriceLevel(n.Left)
-		if leftBest != nil && leftBest.Compare(bestPriceNode) < 0 {
-			bestPriceNode = leftBest
-		}
-	}
-
-	if n.Right != nil {
-		rightBest := tree.findBestPriceLevel(n.Right)
-		if rightBest != nil && rightBest.Compare(bestPriceNode) < 0 {
-			bestPriceNode = rightBest
-		}
-	}
-
-	return bestPriceNode
 }
 
 func (ob *OrderBook) MatchOrder(order *PriceLevel, sameTree *RBTree, oppositeTree *RBTree) {
 	for order.Volume > 0 {
-		bestOppositeOrder := oppositeTree.BestPriceLevel
+		// Check if the opposite tree has best orders to match
+		bestOppositeOrder := oppositeTree.BestPriceOrder
 		if bestOppositeOrder == nil {
 			// No opposite orders, insert the aggressive order into the opposite tree
 			sameTree.Insert(order)
