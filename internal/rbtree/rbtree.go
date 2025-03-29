@@ -1,5 +1,10 @@
 package rbtree
 
+import (
+	"fmt"
+	"math"
+)
+
 type Color int
 
 const (
@@ -28,10 +33,27 @@ func NewOrderBook() *OrderBook {
 }
 
 func (ob *OrderBook) InsertOrder(order *PriceLevel) {
+	var oppositeTree *RBTree
+	var sameTree *RBTree
+
 	if order.Type == "ask" {
-		ob.AskTree.Insert(order)
+		oppositeTree = ob.BidTree // Buyers
+		sameTree = ob.AskTree     // Sellers
 	} else {
-		ob.BidTree.Insert(order)
+		oppositeTree = ob.AskTree // Sellers
+		sameTree = ob.BidTree     // Buyers
+	}
+
+	// Check if opposite tree exists and has best orders to match
+	bestOppositeOrder := oppositeTree.BestPriceLevel
+	if bestOppositeOrder != nil &&
+		((order.Type == "bid" && order.Price >= bestOppositeOrder.Price) ||
+			(order.Type == "ask" && order.Price <= bestOppositeOrder.Price)) {
+		// Order can aggressive, match it with opposite best orders
+		ob.MatchOrder(order, sameTree, oppositeTree)
+	} else {
+		// Order is passive, insert it into the same tree
+		sameTree.Insert(order)
 	}
 }
 
@@ -205,6 +227,8 @@ func (tree *RBTree) fixInsert(n *Node) {
 	}
 
 	tree.Root.Color = BLACK
+
+	tree.UpdateBestPriceLevel()
 }
 
 func (tree *RBTree) Remove(order *PriceLevel) {
@@ -376,4 +400,41 @@ func (tree *RBTree) findBestPriceLevel(n *Node) *PriceLevel {
 	}
 
 	return bestPriceNode
+}
+
+func (ob *OrderBook) MatchOrder(order *PriceLevel, sameTree *RBTree, oppositeTree *RBTree) {
+	for order.Volume > 0 {
+		bestOppositeOrder := oppositeTree.BestPriceLevel
+		if bestOppositeOrder == nil {
+			// No opposite orders, insert the aggressive order into the opposite tree
+			sameTree.Insert(order)
+			break // No opposite orders, exit
+		}
+
+		// Check if the best opposite order can be matched with the aggressive order
+		if (order.Type == "bid" && order.Price < bestOppositeOrder.Price) ||
+			(order.Type == "ask" && order.Price > bestOppositeOrder.Price) {
+			sameTree.Insert(order)
+			break // No match, exit
+		}
+
+		// Compute trade quantity (minimum of the two orders)
+		tradeQty := math.Min(order.Volume, bestOppositeOrder.Volume)
+
+		// Update volumes of both orders
+		order.Volume -= tradeQty
+		bestOppositeOrder.Volume -= tradeQty
+
+		fmt.Printf("Trade executed: %s %f @ %f\n", order.Type, tradeQty, bestOppositeOrder.Price)
+
+		// Remove the opposite order if its volume is zero
+		if bestOppositeOrder.Volume == 0 {
+			oppositeTree.Remove(bestOppositeOrder)
+		}
+
+		// Exit if the aggressive order volume is zero
+		if order.Volume == 0 {
+			break
+		}
+	}
 }
