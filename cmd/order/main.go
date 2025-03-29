@@ -9,8 +9,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"oder-service/config"
-	"oder-service/models"
+	"order-service/config"
+	"order-service/models"
 	"os"
 	"os/signal"
 	"syscall"
@@ -68,8 +68,8 @@ func main() {
 		Type:                  "hello",
 		Heartbeat:             true,
 		Apikey:                cfg.APIKey,
-		SubscribeDataType:     []string{"book"},
-		SubscribeFilterSymbol: []string{"COINBASE_SPOT_BTC_USD", "ETH-USD"},
+		SubscribeDataType:     []string{"book_13"},
+		SubscribeFilterSymbol: []string{"COINBASE_SPOT_BTC_USD"},
 	}
 
 	subscriptionJSON, err := json.Marshal(subscription)
