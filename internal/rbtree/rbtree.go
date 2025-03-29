@@ -91,6 +91,10 @@ func (ob *OrderBook) InsertOrder(order *Order) {
 	var oppositeTree *RBTree
 	var sameTree *RBTree
 
+	if order.Volume <= 0 || order.Price <= 0 {
+		return
+	}
+
 	if order.Type == "ask" {
 		oppositeTree = ob.BidTree // Buyers
 		sameTree = ob.AskTree     // Sellers
@@ -201,6 +205,7 @@ func (tree *RBTree) Insert(order *Order) {
 			Color:     RED,
 		}
 		tree.Root = newNode
+		newNode.OrderList.Append(order)
 		tree.UpdateBestPriceOrder() // Update the best price level
 		return
 	}
@@ -248,6 +253,11 @@ func (tree *RBTree) fixInsert(n *Node) {
 	// While the parent node is red, we need to restructuring the tree and / or recoloring nodes.
 	for parentNode != nil && parentNode.Color == RED {
 		grandparentNode := parentNode.Parent
+
+		// Check if the grandparent node exists
+		if grandparentNode == nil {
+			break
+		}
 
 		// Parent node is the left child of the grandparent node.
 		if parentNode == grandparentNode.Left {
@@ -298,7 +308,9 @@ func (tree *RBTree) fixInsert(n *Node) {
 		parentNode = n.Parent
 	}
 
-	tree.Root.Color = BLACK
+	if tree.Root != nil {
+		tree.Root.Color = BLACK
+	}
 
 	tree.UpdateBestPriceOrder()
 }
@@ -450,17 +462,17 @@ func (tree *RBTree) findNode(price float64) *Node {
 }
 
 func (tree *RBTree) UpdateBestPriceOrder() {
-	if tree.Root != nil {
+	if tree.Root == nil {
 		tree.BestPriceOrder = nil
 		return
 	}
 
-	// Find the best price order in the tree, (i.e., the first order in the linked list)
-	bestPriceOrder := tree.Root.OrderList.Head.Order
-	if bestPriceOrder != nil {
-		tree.BestPriceOrder = bestPriceOrder
-		return
+	currentNode := tree.Root
+	for currentNode.Left != nil {
+		currentNode = currentNode.Left
 	}
+	// Best price order is the first order in the order list (oldest one so as to be executed first)
+	tree.BestPriceOrder = currentNode.OrderList.Head.Order
 }
 
 func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RBTree) {
@@ -492,6 +504,7 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 		// Remove the opposite order if its volume is zero
 		if bestOppositeOrder.Volume == 0 {
 			oppositeTree.Remove(bestOppositeOrder)
+			break
 		}
 
 		// Exit if the aggressive order volume is zero
