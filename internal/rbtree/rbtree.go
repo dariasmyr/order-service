@@ -12,7 +12,7 @@ const (
 	BLACK
 )
 
-type PriceLevel struct {
+type Order struct {
 	Type   string
 	Status string
 	ID     string
@@ -33,7 +33,7 @@ func NewOrderBook() *OrderBook {
 }
 
 type OrderNode struct {
-	Order *PriceLevel
+	Order *Order
 	Next  *OrderNode
 	Prev  *OrderNode
 }
@@ -43,7 +43,7 @@ type OrderList struct {
 	Tail *OrderNode
 }
 
-func (ol *OrderList) Append(order *PriceLevel) {
+func (ol *OrderList) Append(order *Order) {
 	newNode := &OrderNode{Order: order}
 	if ol.Tail == nil {
 		ol.Head = newNode
@@ -55,7 +55,7 @@ func (ol *OrderList) Append(order *PriceLevel) {
 	}
 }
 
-func (ol *OrderList) Pop() *PriceLevel {
+func (ol *OrderList) Pop() *Order {
 	if ol.Head == nil {
 		return nil
 	}
@@ -67,7 +67,7 @@ func (ol *OrderList) Pop() *PriceLevel {
 	return order
 }
 
-func (ol *OrderList) Remove(order *PriceLevel) {
+func (ol *OrderList) Remove(order *Order) {
 	node := ol.Head
 	for node != nil {
 		if node.Order.ID == order.ID {
@@ -87,7 +87,7 @@ func (ol *OrderList) Remove(order *PriceLevel) {
 	}
 }
 
-func (ob *OrderBook) InsertOrder(order *PriceLevel) {
+func (ob *OrderBook) InsertOrder(order *Order) {
 	var oppositeTree *RBTree
 	var sameTree *RBTree
 
@@ -112,7 +112,7 @@ func (ob *OrderBook) InsertOrder(order *PriceLevel) {
 	}
 }
 
-func (pl *PriceLevel) Compare(otherPrice float64) int {
+func (pl *Order) Compare(otherPrice float64) int {
 	switch pl.Type {
 	case "ask": // asks (sellers) are sorted in ascending order
 		if pl.Price < otherPrice {
@@ -142,7 +142,7 @@ type Node struct {
 
 type RBTree struct {
 	Root           *Node
-	BestPriceOrder *PriceLevel
+	BestPriceOrder *Order
 }
 
 func (tree *RBTree) rotateLeft(n *Node) *Node {
@@ -189,7 +189,7 @@ func (tree *RBTree) rotateRight(n *Node) *Node {
 	return lChild
 }
 
-func (tree *RBTree) Insert(order *PriceLevel) {
+func (tree *RBTree) Insert(order *Order) {
 	// Search for the node to insert the new order in the tree
 	currentNode := tree.Root
 
@@ -303,7 +303,7 @@ func (tree *RBTree) fixInsert(n *Node) {
 	tree.UpdateBestPriceOrder()
 }
 
-func (tree *RBTree) Remove(order *PriceLevel) {
+func (tree *RBTree) Remove(order *Order) {
 	nodeToDelete := tree.findNode(order.Price)
 	if nodeToDelete == nil {
 		return // Node not found
@@ -463,7 +463,7 @@ func (tree *RBTree) UpdateBestPriceOrder() {
 	}
 }
 
-func (ob *OrderBook) MatchOrder(order *PriceLevel, sameTree *RBTree, oppositeTree *RBTree) {
+func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RBTree) {
 	for order.Volume > 0 {
 		// Check if the opposite tree has best orders to match
 		bestOppositeOrder := oppositeTree.BestPriceOrder
