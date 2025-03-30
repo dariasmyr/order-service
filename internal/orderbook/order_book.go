@@ -6,14 +6,18 @@ import (
 )
 
 type OrderBook struct {
-	BidTree *RBTree
-	AskTree *RBTree
+	SymbolID string
+	BidTree  *RBTree
+	AskTree  *RBTree
 }
 
-func NewOrderBook() *OrderBook {
+func NewOrderBook(
+	symbolId string,
+) *OrderBook {
 	return &OrderBook{
-		BidTree: &RBTree{},
-		AskTree: &RBTree{},
+		SymbolID: symbolId,
+		BidTree:  &RBTree{},
+		AskTree:  &RBTree{},
 	}
 }
 

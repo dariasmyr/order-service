@@ -7,7 +7,7 @@ import (
 )
 
 func TestInsertSingleOrder(t *testing.T) {
-	ob := orderbook.NewOrderBook()
+	ob := orderbook.NewOrderBook("BTC_USDT")
 
 	// Insert a bid order
 	bidOrder := &orderbook.Order{
@@ -27,7 +27,7 @@ func TestInsertSingleOrder(t *testing.T) {
 }
 
 func TestInsertMultipleOrders(t *testing.T) {
-	ob := orderbook.NewOrderBook()
+	ob := orderbook.NewOrderBook("BTC_USDT")
 
 	// Insert a few bid orders
 	bidOrders := []*orderbook.Order{
@@ -46,7 +46,7 @@ func TestInsertMultipleOrders(t *testing.T) {
 }
 
 func TestOrderMatching(t *testing.T) {
-	ob := orderbook.NewOrderBook()
+	ob := orderbook.NewOrderBook("BTC_USDT")
 
 	// Insert bid orders
 	bidOrders := []*orderbook.Order{
@@ -83,7 +83,7 @@ func TestOrderMatching(t *testing.T) {
 }
 
 func TestInsertPassiveOrder(t *testing.T) {
-	ob := orderbook.NewOrderBook()
+	ob := orderbook.NewOrderBook("BTC_USDT")
 
 	// Insert a bid order
 	bidOrder := &orderbook.Order{
@@ -114,7 +114,7 @@ func TestInsertPassiveOrder(t *testing.T) {
 }
 
 func TestRemoveOrder(t *testing.T) {
-	ob := orderbook.NewOrderBook()
+	ob := orderbook.NewOrderBook("BTC_USDT")
 
 	// Insert a bid order
 	bidOrder := &orderbook.Order{
@@ -137,7 +137,7 @@ func TestRemoveOrder(t *testing.T) {
 }
 
 func TestRedBlackTreeProperties(t *testing.T) {
-	ob := orderbook.NewOrderBook()
+	ob := orderbook.NewOrderBook("BTC_USDT")
 
 	// Insert a series of orders to test the balancing
 	orders := []*orderbook.Order{
@@ -166,7 +166,7 @@ func isBalanced(node *orderbook.Node) bool {
 }
 
 func TestEdgeCaseOrders(t *testing.T) {
-	ob := orderbook.NewOrderBook()
+	ob := orderbook.NewOrderBook("BTC_USDT")
 
 	// Insert an order with zero volume
 	zeroVolumeOrder := &orderbook.Order{

@@ -65,11 +65,12 @@ func main() {
 	}
 
 	subscription := SubscriptionMessage{
-		Type:                  "hello",
-		Heartbeat:             true,
-		Apikey:                cfg.APIKey,
-		SubscribeDataType:     []string{"book_13"},
-		SubscribeFilterSymbol: []string{"COINBASE_SPOT_BTC_USD"},
+		Type:              "hello",
+		Heartbeat:         true,
+		Apikey:            cfg.APIKey,
+		SubscribeDataType: []string{"book_l3"},
+		SubscribeFilterSymbol: []string{"COINBASE_SPOT_BTC_USD",
+			"ETH-USD"},
 	}
 
 	subscriptionJSON, err := json.Marshal(subscription)
