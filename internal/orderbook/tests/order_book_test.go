@@ -276,7 +276,7 @@ func TestOrderBookUpdate(t *testing.T) {
 	}
 }
 
-func TestPerformanceWithGeneraledOrders(t *testing.T) {
+func TestPerformanceWithGeneratedOrders(t *testing.T) {
 	ob := orderbook.NewOrderBook("BTC_USDT")
 
 	start := time.Now()
@@ -346,6 +346,9 @@ func TestPerformanceWithGeneraledOrders(t *testing.T) {
 	if duration.Seconds() > 5 {
 		t.Errorf("Performance test took too long: %s", duration)
 	}
+
+	added, removed, match := ob.GetOrderStats()
+	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
 }
 
 func TestPerformanceWithRealOrders(t *testing.T) {
@@ -389,6 +392,8 @@ func TestPerformanceWithRealOrders(t *testing.T) {
 
 	fmt.Printf("Processed %d orders in %s\n", numOrders, duration)
 	fmt.Printf("Number of matches made: %d\n", ob.MatchOrdersCount)
+	added, removed, match := ob.GetOrderStats()
+	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
 
 	if duration.Seconds() > 5 {
 		t.Errorf("Performance test took too long: %s", duration)

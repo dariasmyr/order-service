@@ -5,15 +5,15 @@ import (
 )
 
 type OrderBook struct {
-	SymbolID         string
-	BidTree          *RBTree
-	AskTree          *RBTree
-	MatchOrdersCount int
+	SymbolID           string
+	BidTree            *RBTree
+	AskTree            *RBTree
+	MatchOrdersCount   int
+	AddedOrdersCount   int
+	RemovedOrdersCount int
 }
 
-func NewOrderBook(
-	symbolId string,
-) *OrderBook {
+func NewOrderBook(symbolId string) *OrderBook {
 	return &OrderBook{
 		SymbolID: symbolId,
 		BidTree:  &RBTree{},
@@ -27,11 +27,13 @@ func (ob *OrderBook) RemoveOrder(order *Order) {
 	} else {
 		ob.AskTree.Remove(order)
 	}
+	ob.RemovedOrdersCount++
 }
 
 func (ob *OrderBook) UpdateOrderVolume(order *Order) {
 	if order.Volume <= 0 || order.Price <= 0 {
 		ob.RemoveOrder(order)
+		return
 	}
 	if order.Type == "bid" {
 		ob.BidTree.UpdateOrderVolume(order)
@@ -66,6 +68,7 @@ func (ob *OrderBook) InsertOrder(order *Order) {
 	} else {
 		// Order is passive, insert it into the same tree
 		sameTree.Insert(order)
+		ob.AddedOrdersCount++
 	}
 }
 
@@ -76,6 +79,7 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 		if bestOppositeOrder == nil {
 			// No opposite orders, insert the aggressive order into the opposite tree
 			sameTree.Insert(order)
+			ob.AddedOrdersCount++
 			break // No opposite orders, exit
 		}
 
@@ -83,7 +87,8 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 		if (order.Type == "bid" && order.Price < bestOppositeOrder.Price) ||
 			(order.Type == "ask" && order.Price > bestOppositeOrder.Price) {
 			sameTree.Insert(order)
-			break // No match, exit
+			ob.AddedOrdersCount++
+			break
 		}
 
 		// Compute trade quantity (minimum of the two orders)
@@ -99,6 +104,7 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 		// Remove the opposite order if its volume is zero
 		if bestOppositeOrder.Volume <= 0.000000 {
 			oppositeTree.Remove(bestOppositeOrder)
+			ob.RemovedOrdersCount++
 			break
 		}
 
@@ -107,4 +113,8 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 			break
 		}
 	}
+}
+
+func (ob *OrderBook) GetOrderStats() (int, int, int) {
+	return ob.AddedOrdersCount, ob.RemovedOrdersCount, ob.MatchOrdersCount
 }
