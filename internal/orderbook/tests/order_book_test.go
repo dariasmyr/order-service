@@ -1,8 +1,10 @@
 package tests
 
 import (
+	"encoding/json"
 	"fmt"
 	"order-service/internal/orderbook"
+	"os"
 	"testing"
 	"time"
 )
@@ -274,7 +276,7 @@ func TestOrderBookUpdate(t *testing.T) {
 	}
 }
 
-func TestPerformanceWithLargeNumberOfOrders(t *testing.T) {
+func TestPerformanceWithGeneraledOrders(t *testing.T) {
 	ob := orderbook.NewOrderBook("BTC_USDT")
 
 	start := time.Now()
@@ -344,4 +346,52 @@ func TestPerformanceWithLargeNumberOfOrders(t *testing.T) {
 	if duration.Seconds() > 5 {
 		t.Errorf("Performance test took too long: %s", duration)
 	}
+}
+
+func TestPerformanceWithRealOrders(t *testing.T) {
+	data, err := os.ReadFile("output_COINBASE_SPOT_BCH_USD.json")
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+
+	var response struct {
+		SymbolID     string            `json:"symbol_id"`
+		TimeExchange string            `json:"time_exchange"`
+		TimeCoinAPI  string            `json:"time_coinapi"`
+		Asks         []orderbook.Order `json:"asks"`
+		Bids         []orderbook.Order `json:"bids"`
+	}
+
+	err = json.Unmarshal(data, &response)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+
+	ob := orderbook.NewOrderBook("COINBASE_SPOT_BCH_USD")
+
+	numOrders := len(response.Asks) + len(response.Bids)
+
+	start := time.Now()
+
+	for _, order := range response.Asks {
+		order.UpdateType = "ADD" // As output.json doesn't contain update type (REST API response, not web socket with update type), we set it to "ADD"
+		order.Type = "ask"
+		ob.InsertOrder(&order)
+	}
+
+	for _, order := range response.Bids {
+		order.UpdateType = "ADD" // Same as above
+		order.Type = "bid"
+		ob.InsertOrder(&order)
+	}
+
+	duration := time.Since(start)
+
+	fmt.Printf("Processed %d orders in %s\n", numOrders, duration)
+	fmt.Printf("Number of matches made: %d\n", ob.MatchOrdersCount)
+
+	if duration.Seconds() > 5 {
+		t.Errorf("Performance test took too long: %s", duration)
+	}
+
 }

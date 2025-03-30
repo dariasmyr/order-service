@@ -5,9 +5,10 @@ import (
 )
 
 type OrderBook struct {
-	SymbolID string
-	BidTree  *RBTree
-	AskTree  *RBTree
+	SymbolID         string
+	BidTree          *RBTree
+	AskTree          *RBTree
+	MatchOrdersCount int
 }
 
 func NewOrderBook(
@@ -91,6 +92,9 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 		// Update volumes of both orders
 		order.Volume -= tradeQty
 		bestOppositeOrder.Volume -= tradeQty
+
+		// Update match count
+		ob.MatchOrdersCount++
 
 		// Remove the opposite order if its volume is zero
 		if bestOppositeOrder.Volume <= 0.000000 {

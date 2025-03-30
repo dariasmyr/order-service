@@ -1,11 +1,11 @@
 package orderbook
 
 type Order struct {
-	Type       string
-	ID         string
-	Price      float64
-	Volume     float64
-	UpdateType string
+	ID         string  `json:"id"`
+	Price      float64 `json:"price"`
+	Volume     float64 `json:"size"`
+	UpdateType string  `json:"update_type"`
+	Type       string  `json:"type"`
 }
 
 func (o *Order) Compare(otherPrice float64) int {
