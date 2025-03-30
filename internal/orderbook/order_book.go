@@ -86,7 +86,7 @@ func (ob *OrderBook) InsertOrder(order *Order) {
 }
 
 func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RBTree) {
-	for order.Volume > 0 {
+	for order.Volume > 0 && order.Price > 0 {
 		// Check if the opposite tree has best orders to match
 		bestOppositeOrder := oppositeTree.BestPriceOrder
 		if bestOppositeOrder == nil {
@@ -116,6 +116,10 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 
 		// Compute trade quantity (minimum of the two orders)
 		tradeQty := math.Min(order.Volume, bestOppositeOrder.Volume)
+		if tradeQty <= 0 {
+			// No trade possible as both orders have zero volume
+			break
+		}
 
 		// Update volumes of both orders
 		order.Volume -= tradeQty
@@ -125,7 +129,7 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 		ob.MatchOrdersCount++
 
 		// Remove the opposite order if its volume is zero
-		if bestOppositeOrder.Volume <= 0.000000 {
+		if bestOppositeOrder.Volume <= 0 {
 			oppositeTree.Remove(bestOppositeOrder)
 			ob.RemovedOrdersCount++
 			break
