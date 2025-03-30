@@ -276,13 +276,12 @@ func TestOrderBookUpdate(t *testing.T) {
 	}
 }
 
-func TestPerformanceWithGeneratedOrders(t *testing.T) {
+func TestPerformanceGeneratedOrdersWithStatuses(t *testing.T) {
 	ob := orderbook.NewOrderBook("BTC_USDT")
 
 	start := time.Now()
 
 	numOrders := 275121
-	matchCount := 0
 
 	// Generate and insert 10000 orders with random prices and volumes
 	for i := 0; i < numOrders; i++ {
@@ -306,11 +305,6 @@ func TestPerformanceWithGeneratedOrders(t *testing.T) {
 				Type:       "ask",
 			}
 			ob.InsertOrder(askOrder)
-
-			// If the ask order volume is less than the bid order volume, count as a match
-			if askOrder.Volume < order.Volume {
-				matchCount++
-			}
 		}
 
 		// Periodically add the order with updated volume (MATCH или SUBTRACK)
@@ -341,7 +335,49 @@ func TestPerformanceWithGeneratedOrders(t *testing.T) {
 	duration := time.Since(start)
 
 	fmt.Printf("Processed %d orders in %s\n", numOrders, duration)
-	fmt.Printf("Number of matches made: %d\n", matchCount)
+
+	if duration.Seconds() > 5 {
+		t.Errorf("Performance test took too long: %s", duration)
+	}
+
+	added, removed, match := ob.GetOrderStats()
+	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
+}
+
+func TestPerformanceGeneratedOrdersSimpleAdd(t *testing.T) {
+	ob := orderbook.NewOrderBook("BTC_USDT")
+
+	start := time.Now()
+
+	numOrders := 275121
+	// Generate and insert 10000 orders with random prices and volumes
+	for i := 0; i < numOrders; i++ {
+		order := &orderbook.Order{
+			ID:         fmt.Sprintf("order%d", i),
+			Price:      float64(100 + i%100), // Price variates from 100 to 199
+			Volume:     float64(10 + i%10),   // Volume variates from 10 to 19
+			UpdateType: "ADD",
+			Type:       "bid",
+		}
+
+		ob.InsertOrder(order)
+
+		// Periodically insert ask orders
+		if i%2 == 0 {
+			askOrder := &orderbook.Order{
+				ID:         fmt.Sprintf("ask%d", i),
+				Price:      order.Price - 1, // Ask orders are 1 unit below the bid
+				Volume:     order.Volume,
+				UpdateType: "ADD",
+				Type:       "ask",
+			}
+			ob.InsertOrder(askOrder)
+		}
+	}
+
+	duration := time.Since(start)
+
+	fmt.Printf("Processed %d orders in %s\n", numOrders, duration)
 
 	if duration.Seconds() > 5 {
 		t.Errorf("Performance test took too long: %s", duration)
