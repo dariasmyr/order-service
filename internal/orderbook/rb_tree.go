@@ -109,8 +109,6 @@ func (tree *RBTree) Insert(order *Order) {
 	}
 
 	tree.fixInsert(newNode) // Fix the tree after inserting the new node
-
-	tree.UpdateBestPriceOrder() // Update the best price level
 }
 
 func (tree *RBTree) fixInsert(n *Node) {

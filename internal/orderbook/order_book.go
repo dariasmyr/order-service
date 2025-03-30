@@ -68,6 +68,19 @@ func (ob *OrderBook) InsertOrder(order *Order) {
 	} else {
 		// Order is passive, insert it into the same tree
 		sameTree.Insert(order)
+
+		// Check if this order has the best price, and update the best price order accordingly
+		if sameTree.BestPriceOrder == nil ||
+			(order.Type == "ask" && order.Price < sameTree.BestPriceOrder.Price) ||
+			(order.Type == "bid" && order.Price > sameTree.BestPriceOrder.Price) {
+			// If the order has a better price, set it as the best price order
+			sameTree.BestPriceOrder = order
+		}
+
+		// If the order is not best order, update the best price order
+		if sameTree.BestPriceOrder != order {
+			sameTree.UpdateBestPriceOrder() // Update the best price level
+		}
 		ob.AddedOrdersCount++
 	}
 }
@@ -77,8 +90,10 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 		// Check if the opposite tree has best orders to match
 		bestOppositeOrder := oppositeTree.BestPriceOrder
 		if bestOppositeOrder == nil {
-			// No opposite orders, insert the aggressive order into the opposite tree
+			// Insert the order into the tree
 			sameTree.Insert(order)
+			// No opposite orders, update best price order
+			sameTree.BestPriceOrder = order
 			ob.AddedOrdersCount++
 			break // No opposite orders, exit
 		}
@@ -86,7 +101,15 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 		// Check if the best opposite order can be matched with the aggressive order
 		if (order.Type == "bid" && order.Price < bestOppositeOrder.Price) ||
 			(order.Type == "ask" && order.Price > bestOppositeOrder.Price) {
+			// Cannot match, insert the order into the tree
 			sameTree.Insert(order)
+
+			// Update the best price order if the new order's price is better
+			if (order.Type == "bid" && (sameTree.BestPriceOrder == nil || order.Price > sameTree.BestPriceOrder.Price)) ||
+				(order.Type == "ask" && (sameTree.BestPriceOrder == nil || order.Price < sameTree.BestPriceOrder.Price)) {
+				sameTree.BestPriceOrder = order
+			}
+
 			ob.AddedOrdersCount++
 			break
 		}
