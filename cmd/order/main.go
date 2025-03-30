@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"order-service/config"
+	"order-service/internal/orderbook"
 	"order-service/models/api"
 	"os"
 	"os/signal"
@@ -65,12 +66,11 @@ func main() {
 	}
 
 	subscription := SubscriptionMessage{
-		Type:              "hello",
-		Heartbeat:         true,
-		Apikey:            cfg.APIKey,
-		SubscribeDataType: []string{"book_l3"},
-		SubscribeFilterSymbol: []string{"COINBASE_SPOT_BTC_USD",
-			"ETH-USD"},
+		Type:                  "hello",
+		Heartbeat:             true,
+		Apikey:                cfg.APIKey,
+		SubscribeDataType:     []string{"book_l3"},
+		SubscribeFilterSymbol: []string{"COINBASE_SPOT_BTC_USD"},
 	}
 
 	subscriptionJSON, err := json.Marshal(subscription)
@@ -98,6 +98,27 @@ func main() {
 	reader := bufio.NewReader(ws)
 	decoder := json.NewDecoder(reader)
 
+	ob := orderbook.NewOrderBook("BTC_USDT")
+
+	totalMessageCount := 0
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		for {
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				addedCount, removedCount, matchCount := ob.GetOrderStats()
+				logger.Info("Order book stats", "match_count", matchCount, "added_count", addedCount, "removed_count", removedCount, "total_message_count", totalMessageCount)
+			}
+		}
+	}()
+	processOrderMessage(ctx, decoder, ob, &totalMessageCount)
+}
+
+func processOrderMessage(ctx context.Context, decoder *json.Decoder, ob *orderbook.OrderBook, totalMessageCount *int) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -105,13 +126,43 @@ func main() {
 		case <-time.After(5 * time.Second):
 			log.Println("Warning: No data received for 5 seconds")
 		default:
-			var order api.OrderBookMessage
-			if err := decoder.Decode(&order); err != nil {
+			var orderMessage api.OrderBookMessage
+			err := decoder.Decode(&orderMessage)
+			if err != nil {
 				log.Println("JSON decode error:", err)
-				continue
 			}
-			logger.Info("Received order", "order", order)
+
+			if orderMessage.Type == "book_l3" {
+				*totalMessageCount++
+				processOrders(orderMessage, ob)
+			}
 		}
+	}
+}
+
+func processOrders(orderMessage api.OrderBookMessage, ob *orderbook.OrderBook) {
+	for _, ask := range orderMessage.Asks {
+		processOrderUpdate(ask, "ask", ob)
+	}
+	for _, bid := range orderMessage.Bids {
+		processOrderUpdate(bid, "bid", ob)
+	}
+}
+
+// Логика для обработки каждого ордера в обновлениях
+func processOrderUpdate(order api.OrderLevel, orderType string, ob *orderbook.OrderBook) {
+	orderObj := orderbook.Order{
+		ID:     order.ID,
+		Price:  order.Price,
+		Volume: order.Size,
+		Type:   orderType,
+	}
+
+	switch order.UpdateType {
+	case "ADD":
+		ob.InsertOrder(&orderObj)
+	case "DELETE":
+		ob.RemoveOrder(&orderObj)
 	}
 }
 
