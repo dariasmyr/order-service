@@ -181,6 +181,13 @@ func (tree *RBTree) fixInsert(n *Node) {
 	tree.UpdateBestPriceOrder()
 }
 
+func (tree *RBTree) UpdateOrderVolume(order *Order) {
+	node := tree.findNode(order.Price, order.Type)
+	if node != nil {
+		node.OrderList.UpdateOrderVolume(order)
+	}
+}
+
 func (tree *RBTree) Remove(order *Order) {
 	nodeToDelete := tree.findNode(order.Price, order.Type)
 	if nodeToDelete == nil {

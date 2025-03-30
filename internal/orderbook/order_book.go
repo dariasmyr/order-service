@@ -21,6 +21,22 @@ func NewOrderBook(
 	}
 }
 
+func (ob *OrderBook) RemoveOrder(order *Order) {
+	if order.Type == "bid" {
+		ob.BidTree.Remove(order)
+	} else {
+		ob.AskTree.Remove(order)
+	}
+}
+
+func (ob *OrderBook) UpdateOrderVolume(order *Order) {
+	if order.Type == "bid" {
+		ob.BidTree.UpdateOrderVolume(order)
+	} else {
+		ob.AskTree.UpdateOrderVolume(order)
+	}
+}
+
 func (ob *OrderBook) InsertOrder(order *Order) {
 	var oppositeTree *RBTree
 	var sameTree *RBTree

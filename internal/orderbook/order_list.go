@@ -54,3 +54,14 @@ func (ol *OrderList) Remove(order *Order) {
 		node = node.Next
 	}
 }
+
+func (ol *OrderList) UpdateOrderVolume(order *Order) {
+	node := ol.Head
+	for node != nil {
+		if node.Order.ID == order.ID {
+			node.Order.Volume = order.Volume
+			return
+		}
+		node = node.Next
+	}
+}
