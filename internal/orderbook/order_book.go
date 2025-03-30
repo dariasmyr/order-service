@@ -1,7 +1,6 @@
 package orderbook
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -92,8 +91,6 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 		// Update volumes of both orders
 		order.Volume -= tradeQty
 		bestOppositeOrder.Volume -= tradeQty
-
-		fmt.Printf("Trade executed: %s %f @ %f\n", order.Type, tradeQty, bestOppositeOrder.Price)
 
 		// Remove the opposite order if its volume is zero
 		if bestOppositeOrder.Volume <= 0.000000 {
