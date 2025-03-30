@@ -200,3 +200,65 @@ func TestEdgeCaseOrders(t *testing.T) {
 		t.Errorf("Order with negative price should not be inserted into the AskTree")
 	}
 }
+
+func TestOrderBookUpdate(t *testing.T) {
+	ob := orderbook.NewOrderBook("AAPL")
+
+	// Case 1: Adding a bid order
+	order1 := &orderbook.Order{
+		ID:         "1",
+		Type:       "bid",
+		Price:      100.0,
+		Volume:     10.0,
+		UpdateType: "ADD",
+	}
+	ob.InsertOrder(order1)
+
+	if ob.BidTree.BestPriceOrder == nil || ob.BidTree.BestPriceOrder.ID != order1.ID {
+		t.Errorf("Expected order with ID %s to be in the book, but it's not", order1.ID)
+	}
+
+	// Case 2: Updating an order
+	order1Update := &orderbook.Order{
+		ID:         "1",
+		Type:       "bid",
+		Price:      100.0,
+		Volume:     5.0,
+		UpdateType: "MATCH",
+	}
+	ob.UpdateOrderVolume(order1Update)
+
+	if ob.BidTree.BestPriceOrder.Volume != 5.0 {
+		t.Errorf("Expected order volume to be 5.0, but got %f", ob.BidTree.BestPriceOrder.Volume)
+	}
+
+	// Case 3: Updating an order with zero volume (DELETE)
+	order1Delete := &orderbook.Order{
+		ID:         "1",
+		Type:       "bid",
+		Price:      100.0,
+		Volume:     0.0,
+		UpdateType: "SUBTRACK",
+	}
+	ob.UpdateOrderVolume(order1Delete)
+
+	if ob.BidTree.BestPriceOrder != nil {
+		t.Errorf("Expected order with ID %s to be removed, but it's still in the book", order1.ID)
+	}
+
+	// Case 4: Adding an ask order and removing it
+	order2 := &orderbook.Order{
+		ID:         "2",
+		Type:       "ask",
+		Price:      101.0,
+		Volume:     10.0,
+		UpdateType: "ADD",
+	}
+	ob.InsertOrder(order2)
+
+	ob.RemoveOrder(order2)
+
+	if ob.AskTree.BestPriceOrder != nil && ob.AskTree.BestPriceOrder.ID == order2.ID {
+		t.Errorf("Expected order with ID %s to be removed, but it's still in the book", order2.ID)
+	}
+}

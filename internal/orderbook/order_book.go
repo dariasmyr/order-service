@@ -30,6 +30,9 @@ func (ob *OrderBook) RemoveOrder(order *Order) {
 }
 
 func (ob *OrderBook) UpdateOrderVolume(order *Order) {
+	if order.Volume <= 0 || order.Price <= 0 {
+		ob.RemoveOrder(order)
+	}
 	if order.Type == "bid" {
 		ob.BidTree.UpdateOrderVolume(order)
 	} else {
