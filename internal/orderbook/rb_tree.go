@@ -203,38 +203,54 @@ func (tree *RBTree) Remove(order *Order) {
 		// Save the original color of the node to be deleted
 		originalColor := nodeToDelete.Color
 
-		var child *Node
-		if nodeToDelete.Left == nil {
-			// Simple deletion of a node with one child (right). The child replaces the deleted node.
-			child = nodeToDelete.Right
-			tree.transplant(nodeToDelete, nodeToDelete.Right)
-		} else if nodeToDelete.Right == nil {
-			// Simple deletion of a node with one child (left). The child replaces the deleted node.
-			child = nodeToDelete.Left
-			tree.transplant(nodeToDelete, nodeToDelete.Left)
-		} else {
-			// Node to be deleted has two children. Find the successor node and replace the deleted node with it.
-			successor := tree.minimum(nodeToDelete.Right)
-			// Found the successor node. Save its original color and its right child.
-			originalColor = successor.Color
-			child = successor.Right
-
-			if successor.Parent == nodeToDelete {
-				child.Parent = successor
+		// Case 1: Node to be deleted has no children. Simply remove it from the tree.
+		if nodeToDelete.Left == nil && nodeToDelete.Right == nil {
+			if nodeToDelete.Parent != nil {
+				// If the node to be deleted has a parent, set the appropriate child of the parent node to nil
+				if nodeToDelete.Parent.Left == nodeToDelete {
+					nodeToDelete.Parent.Left = nil // Set the left child of the parent node to nil
+				} else {
+					nodeToDelete.Parent.Right = nil
+				}
 			} else {
-				tree.transplant(successor, successor.Right)
-				successor.Right = nodeToDelete.Right
-				successor.Right.Parent = successor
+				// If the node to be deleted is the root node, set the root to nil
+				tree.Root = nil
+			}
+		} else {
+			// Case 2: Node to be deleted has one or two children
+			var child *Node
+			if nodeToDelete.Left == nil {
+				// Simple deletion of a node with one child (right). The child replaces the deleted node.
+				child = nodeToDelete.Right
+				tree.transplant(nodeToDelete, nodeToDelete.Right)
+			} else if nodeToDelete.Right == nil {
+				// Simple deletion of a node with one child (left). The child replaces the deleted node.
+				child = nodeToDelete.Left
+				tree.transplant(nodeToDelete, nodeToDelete.Left)
+			} else {
+				// Node to be deleted has two children. Find the successor node and replace the deleted node with it.
+				successor := tree.minimum(nodeToDelete.Right)
+				// Found the successor node. Save its original color and its right child.
+				originalColor = successor.Color
+				child = successor.Right
+
+				if successor.Parent == nodeToDelete {
+					child.Parent = successor
+				} else {
+					tree.transplant(successor, successor.Right)
+					successor.Right = nodeToDelete.Right
+					successor.Right.Parent = successor
+				}
+
+				tree.transplant(nodeToDelete, successor)
+				successor.Left = nodeToDelete.Left
+				successor.Left.Parent = successor
+				successor.Color = nodeToDelete.Color
 			}
 
-			tree.transplant(nodeToDelete, successor)
-			successor.Left = nodeToDelete.Left
-			successor.Left.Parent = successor
-			successor.Color = nodeToDelete.Color
-		}
-
-		if originalColor == BLACK {
-			tree.fixRemove(child)
+			if originalColor == BLACK {
+				tree.fixRemove(child)
+			}
 		}
 
 		tree.UpdateBestPriceOrder()

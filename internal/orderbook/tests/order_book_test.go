@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"order-service/internal/orderbook"
 	"testing"
+	"time"
 )
 
 func TestInsertSingleOrder(t *testing.T) {
@@ -232,6 +233,16 @@ func TestOrderBookUpdate(t *testing.T) {
 		t.Errorf("Expected order volume to be 5.0, but got %f", ob.BidTree.BestPriceOrder.Volume)
 	}
 
+	// Case 2.1: Updating an order (SUBTRACK)
+	order1Update = &orderbook.Order{
+		ID:         "1",
+		Type:       "bid",
+		Price:      100.0,
+		Volume:     2.0,
+		UpdateType: "SUBTRACK",
+	}
+	ob.UpdateOrderVolume(order1Update)
+
 	// Case 3: Updating an order with zero volume (DELETE)
 	order1Delete := &orderbook.Order{
 		ID:         "1",
@@ -260,5 +271,65 @@ func TestOrderBookUpdate(t *testing.T) {
 
 	if ob.AskTree.BestPriceOrder != nil && ob.AskTree.BestPriceOrder.ID == order2.ID {
 		t.Errorf("Expected order with ID %s to be removed, but it's still in the book", order2.ID)
+	}
+}
+
+func TestPerformanceWithLargeNumberOfOrders(t *testing.T) {
+	ob := orderbook.NewOrderBook("BTC_USDT")
+
+	start := time.Now()
+
+	numOrders := 275121
+	matchCount := 0
+
+	// Generate and insert 10000 orders with random prices and volumes
+	for i := 0; i < numOrders; i++ {
+		order := &orderbook.Order{
+			ID:         fmt.Sprintf("order%d", i),
+			Price:      float64(100 + i%100), // Price variates from 100 to 199
+			Volume:     float64(10 + i%10),   // Volume variates from 10 to 19
+			UpdateType: "ADD",
+			Type:       "bid",
+		}
+
+		ob.InsertOrder(order)
+
+		// Periodically insert ask orders
+		if i%5 == 0 {
+			askOrder := &orderbook.Order{
+				ID:         fmt.Sprintf("ask%d", i),
+				Price:      order.Price - 1, // Ask orders are 1 unit below the bid
+				Volume:     order.Volume,
+				UpdateType: "ADD",
+				Type:       "ask",
+			}
+			ob.InsertOrder(askOrder)
+
+			// If the ask order volume is less than the bid order volume, count as a match
+			if askOrder.Volume < order.Volume {
+				matchCount++
+			}
+		}
+
+		// Periodically update the order volume (MATCH или SUBTRACK)
+		if i%7 == 0 {
+			order.Volume -= 5
+			order.UpdateType = "MATCH"
+			ob.UpdateOrderVolume(order)
+
+			if order.Volume <= 0 {
+				order.UpdateType = "DELETE"
+				ob.UpdateOrderVolume(order)
+			}
+		}
+	}
+
+	duration := time.Since(start)
+
+	fmt.Printf("Processed %d orders in %s\n", numOrders, duration)
+	fmt.Printf("Number of matches made: %d\n", matchCount)
+
+	if duration.Seconds() > 5 {
+		t.Errorf("Performance test took too long: %s", duration)
 	}
 }
