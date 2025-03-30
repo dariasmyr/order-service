@@ -311,16 +311,28 @@ func TestPerformanceWithLargeNumberOfOrders(t *testing.T) {
 			}
 		}
 
-		// Periodically update the order volume (MATCH или SUBTRACK)
+		// Periodically add the order with updated volume (MATCH или SUBTRACK)
 		if i%7 == 0 {
-			order.Volume -= 5
-			order.UpdateType = "MATCH"
-			ob.UpdateOrderVolume(order)
-
-			if order.Volume <= 0 {
-				order.UpdateType = "DELETE"
-				ob.UpdateOrderVolume(order)
+			order := &orderbook.Order{
+				ID:         fmt.Sprintf("order%d", i),
+				Price:      float64(100 + i%100),
+				Volume:     float64(10+i%10) - 5,
+				UpdateType: "MATCH",
+				Type:       "bid",
 			}
+			ob.UpdateOrderVolume(order)
+		}
+
+		// Periodically add the order with DELETE volume
+		if i%12 == 0 {
+			order := &orderbook.Order{
+				ID:         fmt.Sprintf("order%d", i),
+				Price:      float64(100 + i%100),
+				Volume:     0,
+				UpdateType: "DELETE",
+				Type:       "bid",
+			}
+			ob.RemoveOrder(order)
 		}
 	}
 
