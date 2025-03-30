@@ -1,4 +1,4 @@
-package models
+package api
 
 import "time"
 
@@ -16,6 +16,17 @@ type OrderBookMessage struct {
 
 // OrderLevel represents a single order level in the order book
 type OrderLevel struct {
-	Price float64 `json:"price"` // Price of the order level
-	Size  float64 `json:"size"`  // Size (volume) of the order at this price level
+	ID         string  `json:"id"`
+	Price      float64 `json:"price"` // Price of the order level
+	Size       float64 `json:"size"`  // Size (volume) of the order at this price level
+	UpdateType string  `json:"update_type"`
 }
+
+// UpdateType is the type of update
+/*
+ADD	Add order to the price queue.
+UPDATE	Update the order size in the price queue.
+SUBTRACT	Subtract the order size in the price queue.
+DELETE	Delete the order from the price queue.
+MATCH	Subtract the order size in the price queue (same as SUBTRACT but caused by the match).
+*/

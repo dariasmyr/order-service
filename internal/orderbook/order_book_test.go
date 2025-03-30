@@ -10,11 +10,11 @@ func TestInsertSingleOrder(t *testing.T) {
 
 	// Insert a bid order
 	bidOrder := &Order{
-		Type:   "bid",
-		Status: "open",
-		ID:     "bid1",
-		Price:  100.0,
-		Volume: 10.0,
+		Type:       "bid",
+		ID:         "bid1",
+		Price:      100.0,
+		Volume:     10.0,
+		UpdateType: "ADD",
 	}
 
 	ob.InsertOrder(bidOrder)
@@ -59,11 +59,11 @@ func TestOrderMatching(t *testing.T) {
 
 	// Insert an ask order that can match the bid orders
 	askOrder := &Order{
-		Type:   "ask",
-		Status: "open",
-		ID:     "ask1",
-		Price:  105.0,
-		Volume: 10.0,
+		Type:       "ask",
+		UpdateType: "ADD",
+		ID:         "ask1",
+		Price:      105.0,
+		Volume:     10.0,
 	}
 
 	ob.InsertOrder(askOrder)
@@ -86,22 +86,22 @@ func TestInsertPassiveOrder(t *testing.T) {
 
 	// Insert a bid order
 	bidOrder := &Order{
-		Type:   "bid",
-		Status: "open",
-		ID:     "bid1",
-		Price:  100.0,
-		Volume: 10.0,
+		Type:       "bid",
+		UpdateType: "ADD",
+		ID:         "bid1",
+		Price:      100.0,
+		Volume:     10.0,
 	}
 
 	ob.InsertOrder(bidOrder)
 
 	// Insert an ask order that cannot be matched yet
 	askOrder := &Order{
-		Type:   "ask",
-		Status: "open",
-		ID:     "ask1",
-		Price:  110.0,
-		Volume: 5.0,
+		Type:       "ask",
+		UpdateType: "ADD",
+		ID:         "ask1",
+		Price:      110.0,
+		Volume:     5.0,
 	}
 
 	ob.InsertOrder(askOrder)
@@ -117,11 +117,11 @@ func TestRemoveOrder(t *testing.T) {
 
 	// Insert a bid order
 	bidOrder := &Order{
-		Type:   "bid",
-		Status: "open",
-		ID:     "bid1",
-		Price:  100.0,
-		Volume: 10.0,
+		Type:       "bid",
+		UpdateType: "ADD",
+		ID:         "bid1",
+		Price:      100.0,
+		Volume:     10.0,
 	}
 
 	ob.InsertOrder(bidOrder)
@@ -169,11 +169,11 @@ func TestEdgeCaseOrders(t *testing.T) {
 
 	// Insert an order with zero volume
 	zeroVolumeOrder := &Order{
-		Type:   "ask",
-		Status: "open",
-		ID:     "ask1",
-		Price:  100.0,
-		Volume: 0.0,
+		Type:       "ask",
+		UpdateType: "ADD",
+		ID:         "ask1",
+		Price:      100.0,
+		Volume:     0.0,
 	}
 
 	ob.InsertOrder(zeroVolumeOrder)
@@ -185,11 +185,11 @@ func TestEdgeCaseOrders(t *testing.T) {
 
 	// Insert an order with a negative price
 	negativePriceOrder := &Order{
-		Type:   "ask",
-		Status: "open",
-		ID:     "ask2",
-		Price:  -10.0,
-		Volume: 5.0,
+		Type:       "ask",
+		UpdateType: "ADD",
+		ID:         "ask2",
+		Price:      -10.0,
+		Volume:     5.0,
 	}
 
 	ob.InsertOrder(negativePriceOrder)

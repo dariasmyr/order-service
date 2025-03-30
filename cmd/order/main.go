@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"order-service/config"
-	"order-service/models"
+	"order-service/models/api"
 	"os"
 	"os/signal"
 	"syscall"
@@ -104,7 +104,7 @@ func main() {
 		case <-time.After(5 * time.Second):
 			log.Println("Warning: No data received for 5 seconds")
 		default:
-			var order models.OrderBookMessage
+			var order api.OrderBookMessage
 			if err := decoder.Decode(&order); err != nil {
 				log.Println("JSON decode error:", err)
 				continue
