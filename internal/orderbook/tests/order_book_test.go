@@ -1,15 +1,16 @@
-package orderbook
+package tests
 
 import (
 	"fmt"
+	"order-service/internal/orderbook"
 	"testing"
 )
 
 func TestInsertSingleOrder(t *testing.T) {
-	ob := NewOrderBook()
+	ob := orderbook.NewOrderBook()
 
 	// Insert a bid order
-	bidOrder := &Order{
+	bidOrder := &orderbook.Order{
 		Type:       "bid",
 		ID:         "bid1",
 		Price:      100.0,
@@ -26,10 +27,10 @@ func TestInsertSingleOrder(t *testing.T) {
 }
 
 func TestInsertMultipleOrders(t *testing.T) {
-	ob := NewOrderBook()
+	ob := orderbook.NewOrderBook()
 
 	// Insert a few bid orders
-	bidOrders := []*Order{
+	bidOrders := []*orderbook.Order{
 		{Type: "bid", ID: "bid1", Price: 100.0, Volume: 10.0},
 		{Type: "bid", ID: "bid2", Price: 105.0, Volume: 5.0},
 		{Type: "bid", ID: "bid3", Price: 110.0, Volume: 20.0},
@@ -45,10 +46,10 @@ func TestInsertMultipleOrders(t *testing.T) {
 }
 
 func TestOrderMatching(t *testing.T) {
-	ob := NewOrderBook()
+	ob := orderbook.NewOrderBook()
 
 	// Insert bid orders
-	bidOrders := []*Order{
+	bidOrders := []*orderbook.Order{
 		{Type: "bid", ID: "bid1", Price: 100.0, Volume: 10.0},
 		{Type: "bid", ID: "bid2", Price: 105.0, Volume: 5.0},
 	}
@@ -58,7 +59,7 @@ func TestOrderMatching(t *testing.T) {
 	}
 
 	// Insert an ask order that can match the bid orders
-	askOrder := &Order{
+	askOrder := &orderbook.Order{
 		Type:       "ask",
 		UpdateType: "ADD",
 		ID:         "ask1",
@@ -82,10 +83,10 @@ func TestOrderMatching(t *testing.T) {
 }
 
 func TestInsertPassiveOrder(t *testing.T) {
-	ob := NewOrderBook()
+	ob := orderbook.NewOrderBook()
 
 	// Insert a bid order
-	bidOrder := &Order{
+	bidOrder := &orderbook.Order{
 		Type:       "bid",
 		UpdateType: "ADD",
 		ID:         "bid1",
@@ -96,7 +97,7 @@ func TestInsertPassiveOrder(t *testing.T) {
 	ob.InsertOrder(bidOrder)
 
 	// Insert an ask order that cannot be matched yet
-	askOrder := &Order{
+	askOrder := &orderbook.Order{
 		Type:       "ask",
 		UpdateType: "ADD",
 		ID:         "ask1",
@@ -113,10 +114,10 @@ func TestInsertPassiveOrder(t *testing.T) {
 }
 
 func TestRemoveOrder(t *testing.T) {
-	ob := NewOrderBook()
+	ob := orderbook.NewOrderBook()
 
 	// Insert a bid order
-	bidOrder := &Order{
+	bidOrder := &orderbook.Order{
 		Type:       "bid",
 		UpdateType: "ADD",
 		ID:         "bid1",
@@ -136,10 +137,10 @@ func TestRemoveOrder(t *testing.T) {
 }
 
 func TestRedBlackTreeProperties(t *testing.T) {
-	ob := NewOrderBook()
+	ob := orderbook.NewOrderBook()
 
 	// Insert a series of orders to test the balancing
-	orders := []*Order{
+	orders := []*orderbook.Order{
 		{Type: "bid", ID: "bid1", Price: 100.0, Volume: 10.0},
 		{Type: "bid", ID: "bid2", Price: 105.0, Volume: 5.0},
 		{Type: "bid", ID: "bid3", Price: 110.0, Volume: 20.0},
@@ -156,7 +157,7 @@ func TestRedBlackTreeProperties(t *testing.T) {
 }
 
 // A helper function to check tree balance (e.g., black height, red nodes constraints)
-func isBalanced(node *Node) bool {
+func isBalanced(node *orderbook.Node) bool {
 	if node == nil {
 		return true
 	}
@@ -165,10 +166,10 @@ func isBalanced(node *Node) bool {
 }
 
 func TestEdgeCaseOrders(t *testing.T) {
-	ob := NewOrderBook()
+	ob := orderbook.NewOrderBook()
 
 	// Insert an order with zero volume
-	zeroVolumeOrder := &Order{
+	zeroVolumeOrder := &orderbook.Order{
 		Type:       "ask",
 		UpdateType: "ADD",
 		ID:         "ask1",
@@ -184,7 +185,7 @@ func TestEdgeCaseOrders(t *testing.T) {
 	}
 
 	// Insert an order with a negative price
-	negativePriceOrder := &Order{
+	negativePriceOrder := &orderbook.Order{
 		Type:       "ask",
 		UpdateType: "ADD",
 		ID:         "ask2",
