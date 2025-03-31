@@ -76,6 +76,7 @@ func (tree *RBTree) Insert(order *Order) {
 	// Case: nodeToInsert found and its not leaf - simply insert the order
 	if nodeToInsert != tree.leaf {
 		nodeToInsert.OrderList.Append(order)
+		return
 	}
 
 	// Case: nodeToInsert not found: search for the parent
@@ -117,6 +118,8 @@ func (tree *RBTree) Insert(order *Order) {
 	if tree.BestPriceOrder == nil || order.Compare(tree.BestPriceOrder.Price) < 0 {
 		tree.BestPriceOrder = order
 	}
+
+	tree.len++
 
 	// Rebalance the tree after inserting the new node
 	tree.fixInsert(nodeToInsert)
