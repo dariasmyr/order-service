@@ -111,7 +111,7 @@ func main() {
 				return
 			case <-ticker.C:
 				addedCount, removedCount, matchCount := ob.GetOrderStats()
-				logger.Info("Order book stats", "match_count", matchCount, "added_count", addedCount, "removed_count", removedCount, "total_message_count", totalMessageCount)
+				logger.Info("Order book stats", "total_message_count", totalMessageCount, "match_count", matchCount, "added_count", addedCount, "removed_count", removedCount, "best_bid(buyers)_price", ob.BidTree.BestPriceOrder.Price, "best_ask(sellers)_price", ob.AskTree.BestPriceOrder.Price)
 			}
 		}
 	}()
