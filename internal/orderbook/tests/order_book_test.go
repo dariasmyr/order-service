@@ -384,7 +384,7 @@ func TestPerformanceGeneratedOrdersSimpleAdd(t *testing.T) {
 	}
 
 	added, removed, match := ob.GetOrderStats()
-	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
+	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d ask tree len %d best ask %+v bid tree len %d best bid %+v\n", added, removed, match, ob.AskTree.Len(), ob.AskTree.BestPriceOrder, ob.BidTree.Len(), ob.BidTree.BestPriceOrder)
 }
 
 func TestPerformanceWithRealOrders(t *testing.T) {
@@ -429,7 +429,7 @@ func TestPerformanceWithRealOrders(t *testing.T) {
 	fmt.Printf("Processed %d orders in %s\n", numOrders, duration)
 	fmt.Printf("Number of matches made: %d\n", ob.MatchOrdersCount)
 	added, removed, match := ob.GetOrderStats()
-	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
+	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d ask tree len %d best ask %+v bid tree len %d best bid %+v\n", added, removed, match, ob.AskTree.Len(), ob.AskTree.BestPriceOrder, ob.BidTree.Len(), ob.BidTree.BestPriceOrder)
 
 	if duration.Seconds() > 5 {
 		t.Errorf("Performance test took too long: %s", duration)
