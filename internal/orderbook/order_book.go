@@ -31,14 +31,8 @@ func NewOrderBook(symbolId string) *OrderBook {
 func (ob *OrderBook) RemoveOrder(order *Order) {
 	if order.Type == "bid" {
 		ob.BidTree.Remove(order)
-		if ob.BidTree.BestPriceOrder != nil && order.ID == ob.BidTree.BestPriceOrder.ID {
-			ob.BidTree.UpdateBestPriceOrder()
-		}
 	} else {
 		ob.AskTree.Remove(order)
-		if ob.AskTree.BestPriceOrder != nil && order.ID == ob.AskTree.BestPriceOrder.ID {
-			ob.AskTree.UpdateBestPriceOrder()
-		}
 	}
 	ob.RemovedOrdersCount++
 }
@@ -56,12 +50,12 @@ func (ob *OrderBook) UpdateOrderVolume(order *Order) {
 }
 
 func (ob *OrderBook) InsertOrder(order *Order) {
-	var oppositeTree *RBTree
-	var sameTree *RBTree
-
 	if order.Volume <= 0 || order.Price <= 0 {
 		return
 	}
+
+	var oppositeTree *RBTree
+	var sameTree *RBTree
 
 	if order.Type == "ask" {
 		oppositeTree = ob.BidTree // Buyers
@@ -139,7 +133,6 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 		// Remove the opposite order if its volume is zero
 		if bestOppositeOrder.Volume <= 0 {
 			oppositeTree.Remove(bestOppositeOrder)
-			oppositeTree.UpdateBestPriceOrder()
 			ob.RemovedOrdersCount++
 			break
 		}

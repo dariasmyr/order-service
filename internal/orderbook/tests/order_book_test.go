@@ -341,7 +341,7 @@ func TestPerformanceGeneratedOrdersWithStatuses(t *testing.T) {
 	}
 
 	added, removed, match := ob.GetOrderStats()
-	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d best ask %+v best bid %+v\n", added, removed, match, ob.AskTree.BestPriceOrder, ob.BidTree.BestPriceOrder)
+	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d ask tree len %d best ask %+v bid tree len %d best bid %+v\n", added, removed, match, ob.AskTree.Len(), ob.AskTree.BestPriceOrder, ob.BidTree.Len(), ob.BidTree.BestPriceOrder)
 }
 
 func TestPerformanceGeneratedOrdersSimpleAdd(t *testing.T) {

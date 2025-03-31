@@ -113,6 +113,11 @@ func (tree *RBTree) Insert(order *Order) {
 		parent.Right = nodeToInsert // Case: Parent is not leaf, set node to root
 	}
 
+	// As we deleted BestPriceOrder, find the new (first node on the tree: for bids tree is in descending order, for asks tree is ia ascending order) node for (O(log N))
+	if tree.BestPriceOrder == nil || order.Compare(tree.BestPriceOrder.Price) < 0 {
+		tree.BestPriceOrder = order
+	}
+
 	// Rebalance the tree after inserting the new node
 	tree.fixInsert(nodeToInsert)
 }
@@ -181,49 +186,50 @@ func (tree *RBTree) UpdateOrderVolume(order *Order) {
 }
 
 func (tree *RBTree) Remove(order *Order) {
-	nodeToDelete := tree.findNode(order.Price, order.Type)
-	if nodeToDelete == tree.leaf {
+	// Find node with order to delete
+	node := tree.findNode(order.Price, order.Type)
+	if node == tree.leaf {
 		return // Node not found
 	}
 
 	// Remove the order from the order list
-	nodeToDelete.OrderList.Remove(order)
+	node.OrderList.Remove(order)
 
-	// Check if the order list is empty
-	if nodeToDelete.OrderList.Head == nil {
+	// Check if the order list is empty, if yes - delete the node
+	if node.OrderList.Head == nil {
 		// Order list is empty (no orders at this price level), remove the node
 		// Save the original color of the node to be deleted
-		originalColor := nodeToDelete.Color
+		originalColor := node.Color
 
 		var replacement *Node
 
-		if nodeToDelete.Left == tree.leaf {
+		if node.Left == tree.leaf {
 			// Node to be deleted has right child. Replace the deleted node with it.
-			replacement = nodeToDelete.Right
-			tree.transplant(nodeToDelete, nodeToDelete.Right)
-		} else if nodeToDelete.Right == tree.leaf {
+			replacement = node.Right
+			tree.transplant(node, node.Right)
+		} else if node.Right == tree.leaf {
 			// Node to be deleted has left child. Replace the deleted node with it.
-			replacement = nodeToDelete.Left
-			tree.transplant(nodeToDelete, nodeToDelete.Left)
+			replacement = node.Left
+			tree.transplant(node, node.Left)
 		} else {
 			// Node to be deleted has two children. Find the successor node and replace the deleted node with it.
-			successor := tree.minimum(nodeToDelete.Right)
+			successor := tree.minimum(node.Right)
 			originalColor = successor.Color
 
 			replacement = successor.Right
 
-			if successor != nodeToDelete.Right {
+			if successor != node.Right {
 				tree.transplant(successor, successor.Right)
-				successor.Right = nodeToDelete.Right
+				successor.Right = node.Right
 				successor.Right.Parent = successor
 			} else {
 				replacement.Parent = successor
 			}
 
-			tree.transplant(nodeToDelete, successor)
-			successor.Left = nodeToDelete.Left
+			tree.transplant(node, successor)
+			successor.Left = node.Left
 			successor.Left.Parent = successor
-			successor.Color = nodeToDelete.Color
+			successor.Color = node.Color
 		}
 
 		tree.len--
@@ -232,6 +238,17 @@ func (tree *RBTree) Remove(order *Order) {
 			tree.fixRemove(replacement)
 		}
 
+		// As we deleted BestPriceOrder, find the new (first node on the tree: for bids tree is in descending order, for asks tree is ia ascending order) node for (O(log N))
+		if tree.BestPriceOrder == order {
+			if tree.Root == tree.leaf {
+				tree.BestPriceOrder = nil
+			} else {
+				tree.BestPriceOrder = tree.minimum(tree.Root).OrderList.Head.Order
+			}
+		}
+	} else {
+		// Node is not deleted, so we make next after removed order a new best opposite order (for O(1))
+		tree.BestPriceOrder = node.OrderList.Head.Order
 	}
 }
 
@@ -341,18 +358,4 @@ func (tree *RBTree) findNode(price float64, orderType string) *Node {
 		}
 	}
 	return tree.leaf
-}
-
-func (tree *RBTree) UpdateBestPriceOrder() {
-	if tree.Root == tree.leaf {
-		tree.BestPriceOrder = nil
-		return
-	}
-
-	currentNode := tree.Root
-	for currentNode.Left != tree.leaf {
-		currentNode = currentNode.Left
-	}
-	// Best price order is the first order in the order list (oldest one so as to be executed first)
-	tree.BestPriceOrder = currentNode.OrderList.Head.Order
 }
