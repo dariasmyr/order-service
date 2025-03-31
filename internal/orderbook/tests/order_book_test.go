@@ -276,7 +276,7 @@ func TestOrderBookUpdate(t *testing.T) {
 	}
 }
 
-func TestPerformanceGeneratedOrdersWithStatuses(t *testing.T) {
+func TestPerformanceWithUpdate(t *testing.T) {
 	ob := orderbook.NewOrderBook("BTC_USDT")
 
 	start := time.Now()
@@ -341,10 +341,10 @@ func TestPerformanceGeneratedOrdersWithStatuses(t *testing.T) {
 	}
 
 	added, removed, match := ob.GetOrderStats()
-	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d ask tree len %d best ask %+v bid tree len %d best bid %+v\n", added, removed, match, ob.AskTree.Len(), ob.AskTree.BestPriceOrder, ob.BidTree.Len(), ob.BidTree.BestPriceOrder)
+	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
 }
 
-func TestPerformanceGeneratedOrdersSimpleAdd(t *testing.T) {
+func TestPerformanceSimpleAdd(t *testing.T) {
 	ob := orderbook.NewOrderBook("BTC_USDT")
 
 	start := time.Now()
@@ -384,10 +384,10 @@ func TestPerformanceGeneratedOrdersSimpleAdd(t *testing.T) {
 	}
 
 	added, removed, match := ob.GetOrderStats()
-	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d ask tree len %d best ask %+v bid tree len %d best bid %+v\n", added, removed, match, ob.AskTree.Len(), ob.AskTree.BestPriceOrder, ob.BidTree.Len(), ob.BidTree.BestPriceOrder)
+	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
 }
 
-func TestPerformanceWithRealOrders(t *testing.T) {
+func TestPerformanceRealData(t *testing.T) {
 	data, err := os.ReadFile("output_COINBASE_SPOT_BTC_USD.json")
 	if err != nil {
 		t.Fatalf("Failed to read file: %v", err)
@@ -429,10 +429,104 @@ func TestPerformanceWithRealOrders(t *testing.T) {
 	fmt.Printf("Processed %d orders in %s\n", numOrders, duration)
 	fmt.Printf("Number of matches made: %d\n", ob.MatchOrdersCount)
 	added, removed, match := ob.GetOrderStats()
-	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d ask tree len %d best ask %+v bid tree len %d best bid %+v\n", added, removed, match, ob.AskTree.Len(), ob.AskTree.BestPriceOrder, ob.BidTree.Len(), ob.BidTree.BestPriceOrder)
+	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
 
 	if duration.Seconds() > 5 {
 		t.Errorf("Performance test took too long: %s", duration)
 	}
 
+}
+
+func BenchmarkPerformanceWithUpdate(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ob := orderbook.NewOrderBook("BTC_USDT")
+		numOrders := 275121
+
+		b.ResetTimer()
+
+		for i := 0; i < numOrders; i++ {
+			order := &orderbook.Order{
+				ID:         fmt.Sprintf("order%d", i),
+				Price:      float64(100 + i%100),
+				Volume:     float64(10 + i%10),
+				UpdateType: "ADD",
+				Type:       "bid",
+			}
+			ob.InsertOrder(order)
+
+			if i%5 == 0 {
+				askOrder := &orderbook.Order{
+					ID:         fmt.Sprintf("ask%d", i),
+					Price:      order.Price - 1,
+					Volume:     order.Volume,
+					UpdateType: "ADD",
+					Type:       "ask",
+				}
+				ob.InsertOrder(askOrder)
+			}
+
+			if i%7 == 0 {
+				updateOrder := &orderbook.Order{
+					ID:         fmt.Sprintf("order%d", i),
+					Price:      float64(100 + i%100),
+					Volume:     float64(10+i%10) - 5,
+					UpdateType: "MATCH",
+					Type:       "bid",
+				}
+				ob.UpdateOrderVolume(updateOrder)
+			}
+
+			if i%12 == 0 {
+				deleteOrder := &orderbook.Order{
+					ID:         fmt.Sprintf("order%d", i),
+					Price:      float64(100 + i%100),
+					Volume:     0,
+					UpdateType: "DELETE",
+					Type:       "bid",
+				}
+				ob.RemoveOrder(deleteOrder)
+			}
+		}
+	}
+	b.ReportAllocs()
+}
+
+func BenchmarkPerformanceRealData(b *testing.B) {
+	data, err := os.ReadFile("output_COINBASE_SPOT_BTC_USD.json")
+	if err != nil {
+		b.Fatalf("Failed to read file: %v", err)
+	}
+
+	var response struct {
+		SymbolID     string            `json:"symbol_id"`
+		TimeExchange string            `json:"time_exchange"`
+		TimeCoinAPI  string            `json:"time_coinapi"`
+		Asks         []orderbook.Order `json:"asks"`
+		Bids         []orderbook.Order `json:"bids"`
+	}
+
+	err = json.Unmarshal(data, &response)
+	if err != nil {
+		b.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		ob := orderbook.NewOrderBook("COINBASE_SPOT_BCH_USD")
+
+		for _, order := range response.Asks {
+			order.UpdateType = "ADD"
+			order.Type = "ask"
+			ob.InsertOrder(&order)
+		}
+
+		for _, order := range response.Bids {
+			order.UpdateType = "ADD"
+			order.Type = "bid"
+			ob.InsertOrder(&order)
+		}
+	}
+
+	b.ReportAllocs()
 }
