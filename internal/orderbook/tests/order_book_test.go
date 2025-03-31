@@ -24,7 +24,7 @@ func TestInsertSingleOrder(t *testing.T) {
 	ob.InsertOrder(bidOrder)
 
 	// Ensure the bid is in the BidTree
-	if ob.BidTree.Root == nil || ob.BidTree.Root.Key != 100.0 {
+	if ob.BidTree.Root == ob.BidTree.Leaf() || ob.BidTree.Root.Key != 100.0 {
 		t.Errorf("Bid order not inserted correctly into BidTree")
 	}
 }
@@ -111,7 +111,7 @@ func TestInsertPassiveOrder(t *testing.T) {
 	ob.InsertOrder(askOrder)
 
 	// Ensure the ask order is in the AskTree
-	if ob.AskTree.Root == nil || ob.AskTree.Root.Key != 110.0 {
+	if ob.AskTree.Root == ob.AskTree.Leaf() || ob.AskTree.Root.Key != 110.0 {
 		t.Errorf("Ask order not inserted correctly into AskTree")
 	}
 }
@@ -131,10 +131,10 @@ func TestRemoveOrder(t *testing.T) {
 	ob.InsertOrder(bidOrder)
 
 	// Remove the bid order
-	ob.BidTree.Remove(bidOrder)
+	ob.RemoveOrder(bidOrder)
 
 	// Ensure the BidTree is empty after removal
-	if ob.BidTree.Root != nil {
+	if ob.BidTree.Root != ob.BidTree.Leaf() {
 		t.Errorf("Bid order not removed correctly from BidTree")
 	}
 }
@@ -183,7 +183,7 @@ func TestEdgeCaseOrders(t *testing.T) {
 	ob.InsertOrder(zeroVolumeOrder)
 
 	// Verify the order does not get inserted into the tree
-	if ob.AskTree.Root != nil {
+	if ob.AskTree.Root != ob.AskTree.Leaf() {
 		t.Errorf("Order with zero volume should not be inserted into the AskTree")
 	}
 
@@ -199,7 +199,7 @@ func TestEdgeCaseOrders(t *testing.T) {
 	ob.InsertOrder(negativePriceOrder)
 
 	// Verify the negative price order is not inserted
-	if ob.AskTree.Root != nil {
+	if ob.AskTree.Root != ob.AskTree.Leaf() {
 		t.Errorf("Order with negative price should not be inserted into the AskTree")
 	}
 }
@@ -341,7 +341,7 @@ func TestPerformanceGeneratedOrdersWithStatuses(t *testing.T) {
 	}
 
 	added, removed, match := ob.GetOrderStats()
-	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
+	fmt.Printf("Order book stats: added: %d, removed: %d, match: %d best ask %+v best bid %+v\n", added, removed, match, ob.AskTree.BestPriceOrder, ob.BidTree.BestPriceOrder)
 }
 
 func TestPerformanceGeneratedOrdersSimpleAdd(t *testing.T) {
@@ -388,7 +388,7 @@ func TestPerformanceGeneratedOrdersSimpleAdd(t *testing.T) {
 }
 
 func TestPerformanceWithRealOrders(t *testing.T) {
-	data, err := os.ReadFile("output_COINBASE_SPOT_BCH_USD.json")
+	data, err := os.ReadFile("output_COINBASE_SPOT_BTC_USD.json")
 	if err != nil {
 		t.Fatalf("Failed to read file: %v", err)
 	}

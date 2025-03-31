@@ -14,18 +14,31 @@ type OrderBook struct {
 }
 
 func NewOrderBook(symbolId string) *OrderBook {
+	leafNode := &Node{Color: BLACK}
 	return &OrderBook{
 		SymbolID: symbolId,
-		BidTree:  &RBTree{},
-		AskTree:  &RBTree{},
+		BidTree: &RBTree{
+			Root: leafNode,
+			leaf: leafNode,
+		},
+		AskTree: &RBTree{
+			Root: leafNode,
+			leaf: leafNode,
+		},
 	}
 }
 
 func (ob *OrderBook) RemoveOrder(order *Order) {
 	if order.Type == "bid" {
 		ob.BidTree.Remove(order)
+		if ob.BidTree.BestPriceOrder != nil && order.ID == ob.BidTree.BestPriceOrder.ID {
+			ob.BidTree.UpdateBestPriceOrder()
+		}
 	} else {
 		ob.AskTree.Remove(order)
+		if ob.AskTree.BestPriceOrder != nil && order.ID == ob.AskTree.BestPriceOrder.ID {
+			ob.AskTree.UpdateBestPriceOrder()
+		}
 	}
 	ob.RemovedOrdersCount++
 }
@@ -68,18 +81,13 @@ func (ob *OrderBook) InsertOrder(order *Order) {
 	} else {
 		// Order is passive, insert it into the same tree
 		sameTree.Insert(order)
-
-		// Check if this order has the best price, and update the best price order accordingly
-		if sameTree.BestPriceOrder == nil ||
-			(order.Type == "ask" && order.Price < sameTree.BestPriceOrder.Price) ||
+		// Check if this order has the best price
+		if sameTree.BestPriceOrder == nil {
+			sameTree.BestPriceOrder = order
+		} else if (order.Type == "ask" && order.Price < sameTree.BestPriceOrder.Price) ||
 			(order.Type == "bid" && order.Price > sameTree.BestPriceOrder.Price) {
 			// If the order has a better price, set it as the best price order
 			sameTree.BestPriceOrder = order
-		}
-
-		// If the order is not best order, update the best price order
-		if sameTree.BestPriceOrder != order {
-			sameTree.UpdateBestPriceOrder() // Update the best price level
 		}
 		ob.AddedOrdersCount++
 	}
@@ -131,6 +139,7 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 		// Remove the opposite order if its volume is zero
 		if bestOppositeOrder.Volume <= 0 {
 			oppositeTree.Remove(bestOppositeOrder)
+			oppositeTree.UpdateBestPriceOrder()
 			ob.RemovedOrdersCount++
 			break
 		}

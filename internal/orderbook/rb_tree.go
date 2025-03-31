@@ -13,18 +13,28 @@ type Node struct {
 type RBTree struct {
 	Root           *Node
 	BestPriceOrder *Order
+	leaf           *Node
+	len            int
+}
+
+func (tree *RBTree) Len() int {
+	return tree.len
+}
+
+func (tree *RBTree) Leaf() *Node {
+	return tree.leaf
 }
 
 func (tree *RBTree) rotateLeft(n *Node) *Node {
 	rChild := n.Right
 	n.Right = rChild.Left
 
-	if rChild.Left != nil {
+	if rChild.Left != tree.leaf {
 		rChild.Left.Parent = n
 	}
 
 	rChild.Parent = n.Parent
-	if n.Parent == nil {
+	if n.Parent == tree.leaf {
 		tree.Root = rChild
 	} else if n == n.Parent.Left {
 		n.Parent.Left = rChild
@@ -41,12 +51,12 @@ func (tree *RBTree) rotateRight(n *Node) *Node {
 	lChild := n.Left
 	n.Left = lChild.Right
 
-	if lChild.Right != nil {
+	if lChild.Right != tree.leaf {
 		lChild.Right.Parent = n
 	}
 
 	lChild.Parent = n.Parent
-	if n.Parent == nil {
+	if n.Parent == tree.leaf {
 		tree.Root = lChild
 	} else if n == n.Parent.Right {
 		n.Parent.Right = lChild
@@ -61,133 +71,118 @@ func (tree *RBTree) rotateRight(n *Node) *Node {
 
 func (tree *RBTree) Insert(order *Order) {
 	// Search for the node to insert the new order in the tree
-	currentNode := tree.Root
+	nodeToInsert := tree.findNode(order.Price, order.Type)
 
-	if currentNode == nil {
-		// If the tree is empty, create a new node and insert the order
-		newNode := &Node{
-			Key:       order.Price,
-			OrderList: &OrderList{}, // Create a new order list and append the order
-			Color:     RED,
-		}
-		tree.Root = newNode
-		newNode.OrderList.Append(order)
-		tree.BestPriceOrder = order // Set the best price order to the inserted order
-		return
+	// Case: nodeToInsert found and its not leaf - simply insert the order
+	if nodeToInsert != tree.leaf {
+		nodeToInsert.OrderList.Append(order)
 	}
 
-	var parentNode *Node
-	for currentNode != nil {
-		parentNode = currentNode
-		if order.Compare(currentNode.Key) < 0 {
-			currentNode = currentNode.Left // Move to the left child (new order is less than the current node)
-		} else if order.Compare(currentNode.Key) > 0 {
-			currentNode = currentNode.Right // Move to the right child (new order is greater than the current node)
+	// Case: nodeToInsert not found: search for the parent
+	parent := tree.leaf
+	current := tree.Root
+
+	// Standart BTS search: loop utnil reach the leaf of the current node
+	for current != tree.leaf {
+		parent = current
+		if order.Compare(current.Key) < 0 {
+			current = current.Left // Move to the left child (new order is less than the current node)
 		} else {
-			// Found the node with the same price level, append the order to the order list
-			currentNode.OrderList.Append(order)
-			return
+			current = current.Right // Move to the right child (new order is greater than the current node)
 		}
 	}
 
-	// If the node to insert the new order is not found, create a new node and insert the order
-	newNode := &Node{
+	// Parent found: create a new node
+	nodeToInsert = &Node{
 		Key:       order.Price,
 		OrderList: &OrderList{}, // Create a new order list and append the order
-		Color:     RED,
+		Color:     RED,          // New nodes always RED
+		Parent:    parent,
+		Left:      tree.leaf,
+		Right:     tree.leaf,
 	}
-	newNode.OrderList.Append(order)
+	nodeToInsert.OrderList.Append(order)
 
-	// Add the new node to the parent node
-	newNode.Parent = parentNode
-
-	if order.Compare(parentNode.Key) < 0 {
-		parentNode.Left = newNode
+	// Insert node to tree
+	// Case: Parent is leaf, set node to root
+	if parent == tree.leaf {
+		tree.Root = nodeToInsert
+	} else if order.Compare(parent.Key) < 0 {
+		parent.Left = nodeToInsert // Case: Parent is not leaf, set node to root
 	} else {
-		parentNode.Right = newNode
+		parent.Right = nodeToInsert // Case: Parent is not leaf, set node to root
 	}
 
-	tree.fixInsert(newNode) // Fix the tree after inserting the new node
+	// Rebalance the tree after inserting the new node
+	tree.fixInsert(nodeToInsert)
 }
 
-func (tree *RBTree) fixInsert(n *Node) {
-	parentNode := n.Parent
-
+func (tree *RBTree) fixInsert(nodeToInsert *Node) {
 	// While the parent node is red, we need to restructuring the tree and / or recoloring nodes.
-	for parentNode != nil && parentNode.Color == RED {
-		grandparentNode := parentNode.Parent
-
-		// Check if the grandparent node exists
-		if grandparentNode == nil {
-			break
-		}
-
+	for nodeToInsert.Parent.Color == RED {
 		// Parent node is the left child of the grandparent node.
-		if parentNode == grandparentNode.Left {
-			uncleNode := grandparentNode.Right
-
+		if nodeToInsert.Parent == nodeToInsert.Parent.Parent.Left {
+			rightUncle := nodeToInsert.Parent.Parent.Right
 			// Case 1: The uncle (right) node is red. Recolor the parent and uncle nodes to black and the grandparent node to red.
-			if uncleNode != nil && uncleNode.Color == RED {
-				grandparentNode.Color = RED
-				parentNode.Color = BLACK
-				uncleNode.Color = BLACK
-				n = grandparentNode
+			if rightUncle.Color == RED {
+				nodeToInsert.Parent.Color = BLACK
+				rightUncle.Color = BLACK
+				nodeToInsert.Parent.Parent.Color = RED
+				// Move to grandparentNode to continue recoloring
+				nodeToInsert = nodeToInsert.Parent.Parent
 			} else {
 				// Case 2: New Node is the right child of the grandparent node. Perform a left rotation on the parent node.
-				if n == parentNode.Right {
-					n = parentNode
-					tree.rotateLeft(n)
+				if nodeToInsert == nodeToInsert.Parent.Right {
+					// Move to parent node to perform rotation
+					nodeToInsert = nodeToInsert.Parent
+					tree.rotateLeft(nodeToInsert)
 				}
 
 				// Case 3: New Node is the left child of the grandparent node. Perform a right rotation on the grandparent node.
-				parentNode.Color = BLACK
-				grandparentNode.Color = RED
-				tree.rotateRight(grandparentNode)
+				nodeToInsert.Parent.Color = BLACK
+				nodeToInsert.Parent.Parent.Color = RED
+				// Move to grandparent node to perform rotation
+				tree.rotateRight(nodeToInsert.Parent.Parent)
 			}
 		} else {
 			// Parent node is the right child of the grandparent node.
-			uncleNode := grandparentNode.Left
-
-			// Case 1: The uncle (left) node is red. Recolor the parent and uncle nodes to black and the grandparent node to red.
-			if uncleNode != nil && uncleNode.Color == RED {
-				grandparentNode.Color = RED
-				parentNode.Color = BLACK
-				uncleNode.Color = BLACK
-				n = grandparentNode
+			leftUncle := nodeToInsert.Parent.Parent.Left
+			if leftUncle.Color == RED {
+				nodeToInsert.Parent.Color = BLACK
+				leftUncle.Color = BLACK
+				nodeToInsert.Parent.Parent.Color = RED
+				// Move to grandparentNode to continue recoloring
+				nodeToInsert = nodeToInsert.Parent.Parent
 			} else {
 				// Case 2: New Node is the left child of the grandparent node. Perform a right rotation on the parent node.
-				if n == parentNode.Left {
-					n = parentNode
-					tree.rotateRight(n)
+				if nodeToInsert == nodeToInsert.Parent.Left {
+					// Move to parent node to perform rotation
+					nodeToInsert = nodeToInsert.Parent
+					tree.rotateRight(nodeToInsert)
 				}
 
 				// Case 3: New Node is the right child of the grandparent node. Perform a left rotation on the grandparent node.
-				parentNode.Color = BLACK
-				grandparentNode.Color = RED
-				tree.rotateLeft(grandparentNode)
+				nodeToInsert.Parent.Color = BLACK
+				nodeToInsert.Parent.Parent.Color = RED
+				// Move to grandparent node to perform rotation
+				tree.rotateLeft(nodeToInsert.Parent.Parent)
 			}
 		}
-
-		parentNode = n.Parent
 	}
 
-	if tree.Root != nil {
-		tree.Root.Color = BLACK
-	}
-
-	tree.UpdateBestPriceOrder()
+	tree.Root.Color = BLACK
 }
 
 func (tree *RBTree) UpdateOrderVolume(order *Order) {
 	node := tree.findNode(order.Price, order.Type)
-	if node != nil {
+	if node != tree.leaf {
 		node.OrderList.UpdateOrderVolume(order)
 	}
 }
 
 func (tree *RBTree) Remove(order *Order) {
 	nodeToDelete := tree.findNode(order.Price, order.Type)
-	if nodeToDelete == nil {
+	if nodeToDelete == tree.leaf {
 		return // Node not found
 	}
 
@@ -200,171 +195,131 @@ func (tree *RBTree) Remove(order *Order) {
 		// Save the original color of the node to be deleted
 		originalColor := nodeToDelete.Color
 
-		// Case 1: Node to be deleted has no children. Simply remove it from the tree.
-		if nodeToDelete.Left == nil && nodeToDelete.Right == nil {
-			if nodeToDelete.Parent != nil {
-				// If the node to be deleted has a parent, set the appropriate child of the parent node to nil
-				if nodeToDelete.Parent.Left == nodeToDelete {
-					nodeToDelete.Parent.Left = nil // Set the left child of the parent node to nil
-				} else {
-					nodeToDelete.Parent.Right = nil
-				}
-			} else {
-				// If the node to be deleted is the root node, set the root to nil
-				tree.Root = nil
-			}
+		var replacement *Node
+
+		if nodeToDelete.Left == tree.leaf {
+			// Node to be deleted has right child. Replace the deleted node with it.
+			replacement = nodeToDelete.Right
+			tree.transplant(nodeToDelete, nodeToDelete.Right)
+		} else if nodeToDelete.Right == tree.leaf {
+			// Node to be deleted has left child. Replace the deleted node with it.
+			replacement = nodeToDelete.Left
+			tree.transplant(nodeToDelete, nodeToDelete.Left)
 		} else {
-			// Case 2: Node to be deleted has one or two children
-			var child *Node
-			if nodeToDelete.Left == nil && nodeToDelete.Right != nil {
-				// Simple deletion of a node with one child (right). The child replaces the deleted node.
-				child = nodeToDelete.Right
-				tree.transplant(nodeToDelete, nodeToDelete.Right)
-			} else if nodeToDelete.Right == nil && nodeToDelete.Left != nil {
-				// Simple deletion of a node with one child (left). The child replaces the deleted node.
-				child = nodeToDelete.Left
-				tree.transplant(nodeToDelete, nodeToDelete.Left)
+			// Node to be deleted has two children. Find the successor node and replace the deleted node with it.
+			successor := tree.minimum(nodeToDelete.Right)
+			originalColor = successor.Color
+
+			replacement = successor.Right
+
+			if successor != nodeToDelete.Right {
+				tree.transplant(successor, successor.Right)
+				successor.Right = nodeToDelete.Right
+				successor.Right.Parent = successor
 			} else {
-				// Node to be deleted has two children. Find the successor node and replace the deleted node with it.
-				successor := tree.minimum(nodeToDelete.Right)
-				// Found the successor node. Save its original color and its right child.
-				originalColor = successor.Color
-
-				// Check if the successor has a right child
-				if successor.Right != nil {
-					child = successor.Right
-					if successor.Parent == nodeToDelete {
-						// If the successor's right child is directly under it, update the child's parent
-						child.Parent = successor
-					} else {
-						// Otherwise, transplant the successor's right child to its position
-						tree.transplant(successor, successor.Right)
-						successor.Right = nodeToDelete.Right
-						successor.Right.Parent = successor
-					}
-				}
-
-				tree.transplant(nodeToDelete, successor)
-				successor.Left = nodeToDelete.Left
-				successor.Left.Parent = successor
-				successor.Color = nodeToDelete.Color
+				replacement.Parent = successor
 			}
 
-			if originalColor == BLACK && child != nil {
-				tree.fixRemove(child)
-			}
+			tree.transplant(nodeToDelete, successor)
+			successor.Left = nodeToDelete.Left
+			successor.Left.Parent = successor
+			successor.Color = nodeToDelete.Color
 		}
 
-		tree.UpdateBestPriceOrder()
+		tree.len--
+
+		if originalColor == BLACK {
+			tree.fixRemove(replacement)
+		}
+
 	}
 }
 
-func (tree *RBTree) transplant(u, v *Node) {
-	if u.Parent == nil {
-		tree.Root = v
-	} else if u == u.Parent.Left {
-		u.Parent.Left = v
+func (tree *RBTree) transplant(nodeToBeReplaced, nodeThatReplaces *Node) {
+	if nodeToBeReplaced.Parent == tree.leaf {
+		tree.Root = nodeThatReplaces
+	} else if nodeToBeReplaced == nodeToBeReplaced.Parent.Left {
+		nodeToBeReplaced.Parent.Left = nodeThatReplaces
 	} else {
-		u.Parent.Right = v
+		nodeToBeReplaced.Parent.Right = nodeThatReplaces
 	}
-	if v != nil {
-		v.Parent = u.Parent
-	}
+	nodeThatReplaces.Parent = nodeToBeReplaced.Parent
 }
 
-func (tree *RBTree) fixRemove(n *Node) {
-	for n != tree.Root && n.Color == BLACK && n.Parent != nil {
-		if n == n.Parent.Left && n.Parent.Right != nil {
-			sibling := n.Parent.Right
+func (tree *RBTree) fixRemove(nodeToBalance *Node) {
+	for nodeToBalance != tree.Root && nodeToBalance.Color == BLACK {
+		if nodeToBalance == nodeToBalance.Parent.Left {
+			sibling := nodeToBalance.Parent.Right
 			if sibling.Color == RED {
 				// Case 1: Sibling is red. Perform a rotation to move the red sibling into place.
 				sibling.Color = BLACK
-				n.Parent.Color = RED
-				tree.rotateLeft(n.Parent)
-				sibling = n.Parent.Right
-			}
-
-			// Check if the sibling is nil
-			if sibling == nil {
-				break // Exit the loop if the sibling is nil
+				nodeToBalance.Parent.Color = RED
+				tree.rotateLeft(nodeToBalance.Parent)
+				sibling = nodeToBalance.Parent.Right
 			}
 
 			// Case 2: Sibling is black, and both of its children are black.
-			if (sibling.Left == nil || sibling.Left.Color == BLACK) && (sibling.Right == nil || sibling.Right.Color == BLACK) {
+			if sibling.Left.Color == BLACK && sibling.Right.Color == BLACK {
 				sibling.Color = RED
-				n = n.Parent
+				nodeToBalance = nodeToBalance.Parent
 			} else {
 				// Case 3: Sibling is black, and its left child is red, or right child is red.
-				if sibling.Right == nil || sibling.Right.Color == BLACK {
+				if sibling.Right.Color == BLACK {
 					// Case 3a: Sibling's left child is red.
 					sibling.Left.Color = BLACK
 					sibling.Color = RED
 					tree.rotateRight(sibling)
-					sibling = n.Parent.Right
+					sibling = nodeToBalance.Parent.Right
 				}
 
 				// Case 3b: Sibling's right child is red.
-				sibling.Color = n.Parent.Color
-				n.Parent.Color = BLACK
-				if sibling.Right != nil {
-					sibling.Right.Color = BLACK
-				}
-				tree.rotateLeft(n.Parent)
-				n = tree.Root
+				sibling.Color = nodeToBalance.Parent.Color
+				nodeToBalance.Parent.Color = BLACK
+				sibling.Right.Color = BLACK
+				tree.rotateLeft(nodeToBalance.Parent)
+				nodeToBalance = tree.Root
 			}
 		} else {
 			// Symmetric cases for when the node to fix is the right child.
-			sibling := n.Parent.Left
-
-			// Check if the sibling is nil
-			if sibling == nil {
-				break // Exit the loop if the sibling is nil
-			}
+			sibling := nodeToBalance.Parent.Left
 
 			if sibling.Color == RED {
 				// Case 1: Sibling is red. Perform a rotation to move the red sibling into place.
 				sibling.Color = BLACK
-				n.Parent.Color = RED
-				tree.rotateRight(n.Parent)
-				sibling = n.Parent.Left
-			}
-
-			// Check if the sibling is nil
-			if sibling == nil {
-				break // Exit the loop if the sibling is nil
+				nodeToBalance.Parent.Color = RED
+				tree.rotateRight(nodeToBalance.Parent)
+				sibling = nodeToBalance.Parent.Left
 			}
 
 			// Case 2: Sibling is black, and both of its children are black.
-			if (sibling.Left == nil || sibling.Left.Color == BLACK) && (sibling.Right == nil || sibling.Right.Color == BLACK) {
+			if sibling.Left.Color == BLACK && sibling.Right.Color == BLACK {
 				sibling.Color = RED
-				n = n.Parent
+				nodeToBalance = nodeToBalance.Parent
 			} else {
 				// Case 3: Sibling is black, and its left child is red, or right child is red.
-				if sibling.Left == nil || sibling.Left.Color == BLACK {
+				if sibling.Left.Color == BLACK {
 					// Case 3a: Sibling's right child is red.
 					sibling.Right.Color = BLACK
 					sibling.Color = RED
 					tree.rotateLeft(sibling)
-					sibling = n.Parent.Left
+					sibling = nodeToBalance.Parent.Left
 				}
 
 				// Case 3b: Sibling's left child is red.
-				sibling.Color = n.Parent.Color
-				n.Parent.Color = BLACK
-				if sibling.Left != nil {
-					sibling.Left.Color = BLACK
-				}
-				tree.rotateRight(n.Parent)
-				n = tree.Root
+				sibling.Color = nodeToBalance.Parent.Color
+				nodeToBalance.Parent.Color = BLACK
+				sibling.Left.Color = BLACK
+				tree.rotateRight(nodeToBalance.Parent)
+				nodeToBalance = tree.Root
 			}
 		}
 	}
 
-	n.Color = BLACK
+	tree.Root.Color = BLACK
 }
 
 func (tree *RBTree) minimum(node *Node) *Node {
-	for node.Left != nil {
+	for node.Left != tree.leaf {
 		node = node.Left
 	}
 	return node
@@ -372,34 +327,30 @@ func (tree *RBTree) minimum(node *Node) *Node {
 
 func (tree *RBTree) findNode(price float64, orderType string) *Node {
 	currentNode := tree.Root
-	for currentNode != nil {
+	for currentNode != tree.leaf {
+		compareResult := orderType == "bid" && price > currentNode.Key || orderType == "ask" && price < currentNode.Key
+
 		if price == currentNode.Key {
 			return currentNode
-		} else if price < currentNode.Key {
-			if orderType == "bid" {
-				currentNode = currentNode.Right
-			} else if orderType == "ask" {
-				currentNode = currentNode.Left
-			}
+		}
+
+		if compareResult {
+			currentNode = currentNode.Left
 		} else {
-			if orderType == "bid" {
-				currentNode = currentNode.Left
-			} else if orderType == "ask" {
-				currentNode = currentNode.Right
-			}
+			currentNode = currentNode.Right
 		}
 	}
-	return nil
+	return tree.leaf
 }
 
 func (tree *RBTree) UpdateBestPriceOrder() {
-	if tree.Root == nil {
+	if tree.Root == tree.leaf {
 		tree.BestPriceOrder = nil
 		return
 	}
 
 	currentNode := tree.Root
-	for currentNode.Left != nil {
+	for currentNode.Left != tree.leaf {
 		currentNode = currentNode.Left
 	}
 	// Best price order is the first order in the order list (oldest one so as to be executed first)
