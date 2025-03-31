@@ -438,12 +438,11 @@ func TestPerformanceRealData(t *testing.T) {
 }
 
 func BenchmarkPerformanceWithUpdate(b *testing.B) {
+	ob := orderbook.NewOrderBook("BTC_USDT")
+	numOrders := 275121
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
-		ob := orderbook.NewOrderBook("BTC_USDT")
-		numOrders := 275121
-
-		b.ResetTimer()
-
 		for i := 0; i < numOrders; i++ {
 			order := &orderbook.Order{
 				ID:         fmt.Sprintf("order%d", i),
@@ -487,6 +486,42 @@ func BenchmarkPerformanceWithUpdate(b *testing.B) {
 				ob.RemoveOrder(deleteOrder)
 			}
 		}
+
+		added, removed, match := ob.GetOrderStats()
+		fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
+	}
+	b.ReportAllocs()
+}
+
+func BenchmarkPerformanceSimpleAdd(b *testing.B) {
+	numOrders := 275121
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ob := orderbook.NewOrderBook("BTC_USDT")
+		for i := 0; i < numOrders; i++ {
+			order := &orderbook.Order{
+				ID:         fmt.Sprintf("order%d", i),
+				Price:      float64(100 + i%100),
+				Volume:     float64(10 + i%10),
+				UpdateType: "ADD",
+				Type:       "bid",
+			}
+			ob.InsertOrder(order)
+
+			if i%2 == 0 {
+				askOrder := &orderbook.Order{
+					ID:         fmt.Sprintf("ask%d", i),
+					Price:      order.Price - 1,
+					Volume:     order.Volume,
+					UpdateType: "ADD",
+					Type:       "ask",
+				}
+				ob.InsertOrder(askOrder)
+			}
+		}
+		added, removed, match := ob.GetOrderStats()
+		fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
 	}
 	b.ReportAllocs()
 }
