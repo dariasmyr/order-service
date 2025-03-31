@@ -111,7 +111,13 @@ func main() {
 				return
 			case <-ticker.C:
 				addedCount, removedCount, matchCount := ob.GetOrderStats()
-				logger.Info("Order book stats", "total_message_count", totalMessageCount, "match_count", matchCount, "added_count", addedCount, "removed_count", removedCount, "best_bid(buyers)_price", ob.BidTree.BestPriceOrder.Price, "best_ask(sellers)_price", ob.AskTree.BestPriceOrder.Price)
+				logger.Info("STATS", "total_messages", totalMessageCount, "match", matchCount, "added", addedCount, "removed", removedCount)
+				if ob.BidTree.BestPriceOrder != nil {
+					logger.Info("BEST_BID", "price", ob.BidTree.BestPriceOrder.Price, "volume", ob.BidTree.BestPriceOrder.Volume)
+				}
+				if ob.AskTree.BestPriceOrder != nil {
+					logger.Info("BEST_ASK", "price", ob.AskTree.BestPriceOrder.Price, "volume", ob.AskTree.BestPriceOrder.Volume)
+				}
 			}
 		}
 	}()
@@ -133,24 +139,22 @@ func processOrderMessage(ctx context.Context, decoder *json.Decoder, ob *orderbo
 			}
 
 			if orderMessage.Type == "book_l3" {
-				*totalMessageCount++
-				processOrders(orderMessage, ob)
+				processOrders(orderMessage, ob, totalMessageCount)
 			}
 		}
 	}
 }
 
-func processOrders(orderMessage api.OrderBookMessage, ob *orderbook.OrderBook) {
+func processOrders(orderMessage api.OrderBookMessage, ob *orderbook.OrderBook, totalMessageCount *int) {
 	for _, ask := range orderMessage.Asks {
-		processOrderUpdate(ask, "ask", ob)
+		processOrder(ask, "ask", ob, totalMessageCount)
 	}
 	for _, bid := range orderMessage.Bids {
-		processOrderUpdate(bid, "bid", ob)
+		processOrder(bid, "bid", ob, totalMessageCount)
 	}
 }
 
-// Логика для обработки каждого ордера в обновлениях
-func processOrderUpdate(order api.OrderLevel, orderType string, ob *orderbook.OrderBook) {
+func processOrder(order api.OrderLevel, orderType string, ob *orderbook.OrderBook, totalMessageCount *int) {
 	orderObj := orderbook.Order{
 		ID:     order.ID,
 		Price:  order.Price,
@@ -160,8 +164,13 @@ func processOrderUpdate(order api.OrderLevel, orderType string, ob *orderbook.Or
 
 	switch order.UpdateType {
 	case "ADD":
+		*totalMessageCount++
 		ob.InsertOrder(&orderObj)
+	case "MATCH":
+		*totalMessageCount++
+		ob.UpdateOrderVolume(&orderObj)
 	case "DELETE":
+		*totalMessageCount++
 		ob.RemoveOrder(&orderObj)
 	}
 }

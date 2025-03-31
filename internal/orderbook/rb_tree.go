@@ -278,6 +278,10 @@ func (tree *RBTree) fixRemove(nodeToBalance *Node) {
 				sibling = nodeToBalance.Parent.Right
 			}
 
+			// Added in case one of sibling's children is nil
+			if sibling.Left == nil || sibling.Right == nil {
+				return
+			}
 			// Case 2: Sibling is black, and both of its children are black.
 			if sibling.Left.Color == BLACK && sibling.Right.Color == BLACK {
 				sibling.Color = RED
@@ -309,6 +313,11 @@ func (tree *RBTree) fixRemove(nodeToBalance *Node) {
 				nodeToBalance.Parent.Color = RED
 				tree.rotateRight(nodeToBalance.Parent)
 				sibling = nodeToBalance.Parent.Left
+			}
+
+			// Added in case one of sibling's children is nil
+			if sibling.Left == nil || sibling.Right == nil {
+				return
 			}
 
 			// Case 2: Sibling is black, and both of its children are black.
