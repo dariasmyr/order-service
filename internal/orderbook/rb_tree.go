@@ -72,7 +72,7 @@ func (tree *RBTree) Insert(order *Order) {
 		}
 		tree.Root = newNode
 		newNode.OrderList.Append(order)
-		tree.UpdateBestPriceOrder() // Update the best price level
+		tree.BestPriceOrder = order // Set the best price order to the inserted order
 		return
 	}
 
@@ -86,7 +86,6 @@ func (tree *RBTree) Insert(order *Order) {
 		} else {
 			// Found the node with the same price level, append the order to the order list
 			currentNode.OrderList.Append(order)
-			tree.UpdateBestPriceOrder() // Update the best price level
 			return
 		}
 	}
