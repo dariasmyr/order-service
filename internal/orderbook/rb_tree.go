@@ -242,7 +242,7 @@ func (tree *RBTree) Remove(order *Order) {
 		}
 
 		// As we deleted BestPriceOrder, find the new (first node on the tree: for bids tree is in descending order, for asks tree is ia ascending order) node for (O(log N))
-		if tree.BestPriceOrder == order {
+		if tree.BestPriceOrder.ID == order.ID {
 			if tree.Root == tree.leaf {
 				tree.BestPriceOrder = nil
 			} else {
