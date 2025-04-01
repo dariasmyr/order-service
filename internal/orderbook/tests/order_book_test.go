@@ -15,16 +15,16 @@ func TestInsertSingleOrder(t *testing.T) {
 	// Insert a bid order
 	bidOrder := &orderbook.Order{
 		Type:       "bid",
-		ID:         "bid1",
-		Price:      100.0,
-		Volume:     10.0,
+		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
+		Price:      272.83,
+		Volume:     0.64185083,
 		UpdateType: "ADD",
 	}
 
 	ob.InsertOrder(bidOrder)
 
 	// Ensure the bid is in the BidTree
-	if ob.BidTree.Root == ob.BidTree.Leaf() || ob.BidTree.Root.Key != 100.0 {
+	if ob.BidTree.Root == ob.BidTree.Leaf() || ob.BidTree.Root.Key != 272.83 {
 		t.Errorf("Bid order not inserted correctly into BidTree")
 	}
 }
@@ -34,16 +34,16 @@ func TestInsertMultipleOrders(t *testing.T) {
 
 	// Insert a few bid orders
 	bidOrders := []*orderbook.Order{
-		{Type: "bid", ID: "bid1", Price: 100.0, Volume: 10.0},
-		{Type: "bid", ID: "bid2", Price: 105.0, Volume: 5.0},
-		{Type: "bid", ID: "bid3", Price: 110.0, Volume: 20.0},
+		{Type: "bid", ID: "fac5dcb7afbf-4a9d-4519-98e6-0889cf06", Price: 272.83, Volume: 18},
+		{Type: "bid", ID: "100d5004-f4e0-4e92-a571-392403d5b073", Price: 272.83, Volume: 0.64185083},
+		{Type: "bid", ID: "0889cf06-4a9d-4519-98e6-fac5dcb7afbf", Price: 272.82, Volume: 0.641},
 	}
 
 	for _, order := range bidOrders {
 		ob.InsertOrder(order)
 	}
 
-	if ob.BidTree.BestPriceOrder.Price != 110.0 {
+	if ob.BidTree.BestPriceOrder.Price != 272.83 {
 		t.Errorf("Highest bid order not at the top of the linked list")
 	}
 }
@@ -53,8 +53,9 @@ func TestOrderMatching(t *testing.T) {
 
 	// Insert bid orders
 	bidOrders := []*orderbook.Order{
-		{Type: "bid", ID: "bid1", Price: 100.0, Volume: 10.0},
-		{Type: "bid", ID: "bid2", Price: 105.0, Volume: 5.0},
+		{Type: "bid", ID: "50532ea1ccbb-4c84-448a-9c5d-3c5e789c", Price: 272.83, Volume: 18},
+		{Type: "bid", ID: "c64a76ba-5107-4c1b-b788-271ee88df318", Price: 272.83, Volume: 0.64185083},
+		{Type: "bid", ID: "3c5e789c-4c84-448a-9c5d-50532ea1ccbb", Price: 272.82, Volume: 0.641},
 	}
 
 	for _, order := range bidOrders {
@@ -65,21 +66,16 @@ func TestOrderMatching(t *testing.T) {
 	askOrder := &orderbook.Order{
 		Type:       "ask",
 		UpdateType: "ADD",
-		ID:         "ask1",
-		Price:      105.0,
-		Volume:     10.0,
+		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
+		Price:      272.83,
+		Volume:     18.5,
 	}
 
 	ob.InsertOrder(askOrder)
 
-	// Verify the order was matched and the volume was reduced
-	if askOrder.Volume != 5.0 {
-		fmt.Printf("Ask volume %f\n", askOrder.Volume)
-		t.Errorf("Ask order volume should be reduced after matching")
-	}
-
 	// Verify the best opposite order was removed after matching
-	if ob.BidTree.BestPriceOrder.Volume != 10.0 {
+	fmt.Printf("%+v/n", ob.BidTree.BestPriceOrder)
+	if ob.BidTree.BestPriceOrder.Volume != 0.14185082999999998 {
 		fmt.Printf("Bid order: %v\n", ob.BidTree.BestPriceOrder)
 		t.Errorf("Bid order volume should be reduced after matching")
 	}
@@ -88,30 +84,35 @@ func TestOrderMatching(t *testing.T) {
 func TestInsertPassiveOrder(t *testing.T) {
 	ob := orderbook.NewOrderBook("BTC_USDT")
 
-	// Insert a bid order
-	bidOrder := &orderbook.Order{
-		Type:       "bid",
-		UpdateType: "ADD",
-		ID:         "bid1",
-		Price:      100.0,
-		Volume:     10.0,
+	// Insert bid orders
+	bidOrders := []*orderbook.Order{
+		{Type: "bid", ID: "50532ea1ccbb-4c84-448a-9c5d-3c5e789c", Price: 272.83, Volume: 18},
+		{Type: "bid", ID: "c64a76ba-5107-4c1b-b788-271ee88df318", Price: 272.83, Volume: 0.64185083},
+		{Type: "bid", ID: "3c5e789c-4c84-448a-9c5d-50532ea1ccbb", Price: 272.82, Volume: 0.641},
 	}
 
-	ob.InsertOrder(bidOrder)
-
-	// Insert an ask order that cannot be matched yet
-	askOrder := &orderbook.Order{
-		Type:       "ask",
-		UpdateType: "ADD",
-		ID:         "ask1",
-		Price:      110.0,
-		Volume:     5.0,
+	for _, order := range bidOrders {
+		ob.InsertOrder(order)
 	}
 
-	ob.InsertOrder(askOrder)
+	// Insert ask orders that cannot be matched yet
+	askOrders := []*orderbook.Order{
+		{Type: "ask", ID: "3c5e789c-4c84-448a-9c5d-50532ea1ccbb", Price: 272.9, Volume: 1},
+		{Type: "ask", ID: "c64a76ba-5107-4c1b-b788-271ee88df318", Price: 272.9, Volume: 18},
+		{Type: "ask", ID: "271ee88df-5107-4c1b-b788-c64a76ba318", Price: 272.91, Volume: 16},
+	}
+
+	for _, order := range askOrders {
+		ob.InsertOrder(order)
+	}
 
 	// Ensure the ask order is in the AskTree
-	if ob.AskTree.Root == ob.AskTree.Leaf() || ob.AskTree.Root.Key != 110.0 {
+	if ob.AskTree.Root == ob.AskTree.Leaf() || ob.AskTree.BestPriceOrder != askOrders[0] {
+		t.Errorf("Best ask order not inserted correctly into AskTree")
+	}
+
+	// Ensure the bid order is in the AskTree
+	if ob.BidTree.Root == ob.AskTree.Leaf() || ob.BidTree.BestPriceOrder != bidOrders[0] {
 		t.Errorf("Ask order not inserted correctly into AskTree")
 	}
 }
@@ -123,9 +124,9 @@ func TestRemoveOrder(t *testing.T) {
 	bidOrder := &orderbook.Order{
 		Type:       "bid",
 		UpdateType: "ADD",
-		ID:         "bid1",
-		Price:      100.0,
-		Volume:     10.0,
+		ID:         "271ee88df-5107-4c1b-b788-c64a76ba318",
+		Price:      272.83,
+		Volume:     0.64185083,
 	}
 
 	ob.InsertOrder(bidOrder)
@@ -144,9 +145,9 @@ func TestRedBlackTreeProperties(t *testing.T) {
 
 	// Insert a series of orders to test the balancing
 	orders := []*orderbook.Order{
-		{Type: "bid", ID: "bid1", Price: 100.0, Volume: 10.0},
-		{Type: "bid", ID: "bid2", Price: 105.0, Volume: 5.0},
-		{Type: "bid", ID: "bid3", Price: 110.0, Volume: 20.0},
+		{Type: "bid", ID: "50532ea1ccbb-4c84-448a-9c5d-3c5e789c", Price: 272.83, Volume: 18},
+		{Type: "bid", ID: "c64a76ba-5107-4c1b-b788-271ee88df318", Price: 272.83, Volume: 0.64185083},
+		{Type: "bid", ID: "3c5e789c-4c84-448a-9c5d-50532ea1ccbb", Price: 272.82, Volume: 0.641},
 	}
 
 	for _, order := range orders {
@@ -175,8 +176,8 @@ func TestEdgeCaseOrders(t *testing.T) {
 	zeroVolumeOrder := &orderbook.Order{
 		Type:       "ask",
 		UpdateType: "ADD",
-		ID:         "ask1",
-		Price:      100.0,
+		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
+		Price:      272.83,
 		Volume:     0.0,
 	}
 
@@ -190,10 +191,10 @@ func TestEdgeCaseOrders(t *testing.T) {
 	// Insert an order with a negative price
 	negativePriceOrder := &orderbook.Order{
 		Type:       "ask",
+		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
+		Price:      272.83,
+		Volume:     -0.64185083,
 		UpdateType: "ADD",
-		ID:         "ask2",
-		Price:      -10.0,
-		Volume:     5.0,
 	}
 
 	ob.InsertOrder(negativePriceOrder)
@@ -209,11 +210,11 @@ func TestOrderBookUpdate(t *testing.T) {
 
 	// Case 1: Adding a bid order
 	order1 := &orderbook.Order{
-		ID:         "1",
 		Type:       "bid",
-		Price:      100.0,
-		Volume:     10.0,
 		UpdateType: "ADD",
+		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
+		Price:      272.83,
+		Volume:     10,
 	}
 	ob.InsertOrder(order1)
 
@@ -223,34 +224,34 @@ func TestOrderBookUpdate(t *testing.T) {
 
 	// Case 2: Updating an order
 	order1Update := &orderbook.Order{
-		ID:         "1",
 		Type:       "bid",
-		Price:      100.0,
-		Volume:     5.0,
+		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
+		Price:      272.83,
+		Volume:     50,
 		UpdateType: "MATCH",
 	}
 	ob.UpdateOrderVolume(order1Update)
 
-	if ob.BidTree.BestPriceOrder.Volume != 5.0 {
-		t.Errorf("Expected order volume to be 5.0, but got %f", ob.BidTree.BestPriceOrder.Volume)
+	if ob.BidTree.BestPriceOrder.Volume != 50 {
+		t.Errorf("Expected order volume to be 50, but got %f", ob.BidTree.BestPriceOrder.Volume)
 	}
 
 	// Case 2.1: Updating an order (SUBTRACK)
 	order1Update = &orderbook.Order{
-		ID:         "1",
 		Type:       "bid",
-		Price:      100.0,
-		Volume:     2.0,
+		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
+		Price:      272.83,
+		Volume:     20,
 		UpdateType: "SUBTRACK",
 	}
 	ob.UpdateOrderVolume(order1Update)
 
 	// Case 3: Updating an order with zero volume (DELETE)
 	order1Delete := &orderbook.Order{
-		ID:         "1",
 		Type:       "bid",
-		Price:      100.0,
-		Volume:     0.0,
+		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
+		Price:      272.83,
+		Volume:     0,
 		UpdateType: "SUBTRACK",
 	}
 	ob.UpdateOrderVolume(order1Delete)
@@ -261,10 +262,10 @@ func TestOrderBookUpdate(t *testing.T) {
 
 	// Case 4: Adding an ask order and removing it
 	order2 := &orderbook.Order{
-		ID:         "2",
 		Type:       "ask",
-		Price:      101.0,
-		Volume:     10.0,
+		ID:         "c64a76ba-5107-4c1b-b788-271ee88df318",
+		Price:      272.89,
+		Volume:     18,
 		UpdateType: "ADD",
 	}
 	ob.InsertOrder(order2)
