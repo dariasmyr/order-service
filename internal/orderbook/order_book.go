@@ -88,6 +88,7 @@ func (ob *OrderBook) InsertOrder(order *Order) {
 
 func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RBTree) {
 	for order.Volume > 0 && order.Price > 0 {
+		// fmt.Printf("Check for new match %+v \n", order)
 		// Check if the opposite tree has best orders to match
 		if oppositeTree.BestPriceOrder == nil {
 			// Insert the order into the tree
@@ -135,7 +136,6 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 			oppositeTree.Remove(oppositeTree.BestPriceOrder)
 			// fmt.Printf("New best opposite order after match %+v \n", oppositeTree.BestPriceOrder)
 			ob.RemovedOrdersCount++
-			break
 		}
 
 		// Exit if the aggressive order volume is zero
