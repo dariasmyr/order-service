@@ -140,6 +140,7 @@ func processOrderMessage(ctx context.Context, decoder *json.Decoder, ob *orderbo
 			}
 
 			if orderMessage.Type == "book_l3" {
+				//fmt.Printf("Received book l3 order message: %v\n", orderMessage)
 				processOrders(orderMessage, ob, totalMessageCount)
 			}
 		}
@@ -156,6 +157,9 @@ func processOrders(orderMessage api.OrderBookMessage, ob *orderbook.OrderBook, t
 }
 
 func processOrder(order api.OrderLevel, orderType orderbook.OrderType, ob *orderbook.OrderBook, totalMessageCount *int) {
+	if order.ID == "" {
+		return
+	}
 	orderObj := orderbook.Order{
 		ID:     order.ID,
 		Price:  order.Price,
@@ -173,6 +177,9 @@ func processOrder(order api.OrderLevel, orderType orderbook.OrderType, ob *order
 	case "DELETE":
 		*totalMessageCount++
 		ob.RemoveOrder(&orderObj)
+	case "":
+		*totalMessageCount++
+		ob.InsertOrder(&orderObj)
 	}
 }
 

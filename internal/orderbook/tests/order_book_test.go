@@ -488,8 +488,8 @@ func BenchmarkPerformanceWithUpdate(b *testing.B) {
 			}
 		}
 
-		added, removed, match := ob.GetOrderStats()
-		fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
+		//added, removed, match := ob.GetOrderStats()
+		//fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
 	}
 	b.ReportAllocs()
 }
