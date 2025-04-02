@@ -14,7 +14,7 @@ func TestInsertSingleOrder(t *testing.T) {
 
 	// Insert a bid order
 	bidOrder := &orderbook.Order{
-		Type:       "bid",
+		Type:       orderbook.BID,
 		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
 		Price:      272.83,
 		Volume:     0.64185083,
@@ -34,9 +34,9 @@ func TestInsertMultipleOrders(t *testing.T) {
 
 	// Insert a few bid orders
 	bidOrders := []*orderbook.Order{
-		{Type: "bid", ID: "fac5dcb7afbf-4a9d-4519-98e6-0889cf06", Price: 272.83, Volume: 18},
-		{Type: "bid", ID: "100d5004-f4e0-4e92-a571-392403d5b073", Price: 272.83, Volume: 0.64185083},
-		{Type: "bid", ID: "0889cf06-4a9d-4519-98e6-fac5dcb7afbf", Price: 272.82, Volume: 0.641},
+		{Type: orderbook.BID, ID: "fac5dcb7afbf-4a9d-4519-98e6-0889cf06", Price: 272.83, Volume: 18},
+		{Type: orderbook.BID, ID: "100d5004-f4e0-4e92-a571-392403d5b073", Price: 272.83, Volume: 0.64185083},
+		{Type: orderbook.BID, ID: "0889cf06-4a9d-4519-98e6-fac5dcb7afbf", Price: 272.82, Volume: 0.641},
 	}
 
 	for _, order := range bidOrders {
@@ -53,9 +53,9 @@ func TestOrderMatching(t *testing.T) {
 
 	// Insert bid orders
 	bidOrders := []*orderbook.Order{
-		{Type: "bid", ID: "50532ea1ccbb-4c84-448a-9c5d-3c5e789c", Price: 272.83, Volume: 18},
-		{Type: "bid", ID: "c64a76ba-5107-4c1b-b788-271ee88df318", Price: 272.83, Volume: 0.64185083},
-		{Type: "bid", ID: "3c5e789c-4c84-448a-9c5d-50532ea1ccbb", Price: 272.82, Volume: 0.641},
+		{Type: orderbook.BID, ID: "50532ea1ccbb-4c84-448a-9c5d-3c5e789c", Price: 272.83, Volume: 18},
+		{Type: orderbook.BID, ID: "c64a76ba-5107-4c1b-b788-271ee88df318", Price: 272.83, Volume: 0.64185083},
+		{Type: orderbook.BID, ID: "3c5e789c-4c84-448a-9c5d-50532ea1ccbb", Price: 272.82, Volume: 0.641},
 	}
 
 	for _, order := range bidOrders {
@@ -64,7 +64,7 @@ func TestOrderMatching(t *testing.T) {
 
 	// Insert an ask order that can match the bid orders
 	askOrder := &orderbook.Order{
-		Type:       "ask",
+		Type:       orderbook.ASK,
 		UpdateType: "ADD",
 		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
 		Price:      272.83,
@@ -86,9 +86,9 @@ func TestInsertPassiveOrder(t *testing.T) {
 
 	// Insert bid orders
 	bidOrders := []*orderbook.Order{
-		{Type: "bid", ID: "50532ea1ccbb-4c84-448a-9c5d-3c5e789c", Price: 272.83, Volume: 18},
-		{Type: "bid", ID: "c64a76ba-5107-4c1b-b788-271ee88df318", Price: 272.83, Volume: 0.64185083},
-		{Type: "bid", ID: "3c5e789c-4c84-448a-9c5d-50532ea1ccbb", Price: 272.82, Volume: 0.641},
+		{Type: orderbook.BID, ID: "50532ea1ccbb-4c84-448a-9c5d-3c5e789c", Price: 272.83, Volume: 18},
+		{Type: orderbook.BID, ID: "c64a76ba-5107-4c1b-b788-271ee88df318", Price: 272.83, Volume: 0.64185083},
+		{Type: orderbook.BID, ID: "3c5e789c-4c84-448a-9c5d-50532ea1ccbb", Price: 272.82, Volume: 0.641},
 	}
 
 	for _, order := range bidOrders {
@@ -97,9 +97,9 @@ func TestInsertPassiveOrder(t *testing.T) {
 
 	// Insert ask orders that cannot be matched yet
 	askOrders := []*orderbook.Order{
-		{Type: "ask", ID: "3c5e789c-4c84-448a-9c5d-50532ea1ccbb", Price: 272.9, Volume: 1},
-		{Type: "ask", ID: "c64a76ba-5107-4c1b-b788-271ee88df318", Price: 272.9, Volume: 18},
-		{Type: "ask", ID: "271ee88df-5107-4c1b-b788-c64a76ba318", Price: 272.91, Volume: 16},
+		{Type: orderbook.ASK, ID: "3c5e789c-4c84-448a-9c5d-50532ea1ccbb", Price: 272.9, Volume: 1},
+		{Type: orderbook.ASK, ID: "c64a76ba-5107-4c1b-b788-271ee88df318", Price: 272.9, Volume: 18},
+		{Type: orderbook.ASK, ID: "271ee88df-5107-4c1b-b788-c64a76ba318", Price: 272.91, Volume: 16},
 	}
 
 	for _, order := range askOrders {
@@ -122,7 +122,7 @@ func TestRemoveOrder(t *testing.T) {
 
 	// Insert a bid order
 	bidOrder := &orderbook.Order{
-		Type:       "bid",
+		Type:       orderbook.BID,
 		UpdateType: "ADD",
 		ID:         "271ee88df-5107-4c1b-b788-c64a76ba318",
 		Price:      272.83,
@@ -145,9 +145,9 @@ func TestRedBlackTreeProperties(t *testing.T) {
 
 	// Insert a series of orders to test the balancing
 	orders := []*orderbook.Order{
-		{Type: "bid", ID: "50532ea1ccbb-4c84-448a-9c5d-3c5e789c", Price: 272.83, Volume: 18},
-		{Type: "bid", ID: "c64a76ba-5107-4c1b-b788-271ee88df318", Price: 272.83, Volume: 0.64185083},
-		{Type: "bid", ID: "3c5e789c-4c84-448a-9c5d-50532ea1ccbb", Price: 272.82, Volume: 0.641},
+		{Type: orderbook.BID, ID: "50532ea1ccbb-4c84-448a-9c5d-3c5e789c", Price: 272.83, Volume: 18},
+		{Type: orderbook.BID, ID: "c64a76ba-5107-4c1b-b788-271ee88df318", Price: 272.83, Volume: 0.64185083},
+		{Type: orderbook.BID, ID: "3c5e789c-4c84-448a-9c5d-50532ea1ccbb", Price: 272.82, Volume: 0.641},
 	}
 
 	for _, order := range orders {
@@ -155,14 +155,14 @@ func TestRedBlackTreeProperties(t *testing.T) {
 	}
 
 	// Check if the tree is balanced and maintain Red-Black properties
-	if !isBalanced(ob.BidTree.Root) {
+	if !isBalanced(ob) {
 		t.Errorf("Red-Black Tree properties violated after insertions")
 	}
 }
 
 // A helper function to check tree balance (e.g., black height, red nodes constraints)
-func isBalanced(node *orderbook.Node) bool {
-	if node == nil {
+func isBalanced(ob *orderbook.OrderBook) bool {
+	if ob.AskTree.Root == ob.BidTree.Leaf() {
 		return true
 	}
 	// Add your balance checking logic here, such as black height consistency
@@ -174,7 +174,7 @@ func TestEdgeCaseOrders(t *testing.T) {
 
 	// Insert an order with zero volume
 	zeroVolumeOrder := &orderbook.Order{
-		Type:       "ask",
+		Type:       orderbook.ASK,
 		UpdateType: "ADD",
 		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
 		Price:      272.83,
@@ -190,7 +190,7 @@ func TestEdgeCaseOrders(t *testing.T) {
 
 	// Insert an order with a negative price
 	negativePriceOrder := &orderbook.Order{
-		Type:       "ask",
+		Type:       orderbook.ASK,
 		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
 		Price:      272.83,
 		Volume:     -0.64185083,
@@ -210,7 +210,7 @@ func TestOrderBookUpdate(t *testing.T) {
 
 	// Case 1: Adding a bid order
 	order1 := &orderbook.Order{
-		Type:       "bid",
+		Type:       orderbook.BID,
 		UpdateType: "ADD",
 		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
 		Price:      272.83,
@@ -224,7 +224,7 @@ func TestOrderBookUpdate(t *testing.T) {
 
 	// Case 2: Updating an order
 	order1Update := &orderbook.Order{
-		Type:       "bid",
+		Type:       orderbook.BID,
 		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
 		Price:      272.83,
 		Volume:     50,
@@ -238,7 +238,7 @@ func TestOrderBookUpdate(t *testing.T) {
 
 	// Case 2.1: Updating an order (SUBTRACK)
 	order1Update = &orderbook.Order{
-		Type:       "bid",
+		Type:       orderbook.BID,
 		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
 		Price:      272.83,
 		Volume:     20,
@@ -248,7 +248,7 @@ func TestOrderBookUpdate(t *testing.T) {
 
 	// Case 3: Updating an order with zero volume (DELETE)
 	order1Delete := &orderbook.Order{
-		Type:       "bid",
+		Type:       orderbook.BID,
 		ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
 		Price:      272.83,
 		Volume:     0,
@@ -262,7 +262,7 @@ func TestOrderBookUpdate(t *testing.T) {
 
 	// Case 4: Adding an ask order and removing it
 	order2 := &orderbook.Order{
-		Type:       "ask",
+		Type:       orderbook.ASK,
 		ID:         "c64a76ba-5107-4c1b-b788-271ee88df318",
 		Price:      272.89,
 		Volume:     18,
@@ -291,7 +291,7 @@ func TestPerformanceWithUpdate(t *testing.T) {
 			Price:      float64(100 + i%100), // Price variates from 100 to 199
 			Volume:     float64(10 + i%10),   // Volume variates from 10 to 19
 			UpdateType: "ADD",
-			Type:       "bid",
+			Type:       orderbook.BID,
 		}
 
 		ob.InsertOrder(order)
@@ -303,7 +303,7 @@ func TestPerformanceWithUpdate(t *testing.T) {
 				Price:      order.Price - 1, // Ask orders are 1 unit below the bid
 				Volume:     order.Volume,
 				UpdateType: "ADD",
-				Type:       "ask",
+				Type:       orderbook.ASK,
 			}
 			ob.InsertOrder(askOrder)
 		}
@@ -315,7 +315,7 @@ func TestPerformanceWithUpdate(t *testing.T) {
 				Price:      float64(100 + i%100),
 				Volume:     float64(10+i%10) - 5,
 				UpdateType: "MATCH",
-				Type:       "bid",
+				Type:       orderbook.BID,
 			}
 			ob.UpdateOrderVolume(order)
 		}
@@ -327,7 +327,7 @@ func TestPerformanceWithUpdate(t *testing.T) {
 				Price:      float64(100 + i%100),
 				Volume:     0,
 				UpdateType: "DELETE",
-				Type:       "bid",
+				Type:       orderbook.BID,
 			}
 			ob.RemoveOrder(order)
 		}
@@ -358,7 +358,7 @@ func TestPerformanceSimpleAdd(t *testing.T) {
 			Price:      float64(100 + i%100), // Price variates from 100 to 199
 			Volume:     float64(10 + i%10),   // Volume variates from 10 to 19
 			UpdateType: "ADD",
-			Type:       "bid",
+			Type:       orderbook.BID,
 		}
 
 		ob.InsertOrder(order)
@@ -370,7 +370,7 @@ func TestPerformanceSimpleAdd(t *testing.T) {
 				Price:      order.Price - 1, // Ask orders are 1 unit below the bid
 				Volume:     order.Volume,
 				UpdateType: "ADD",
-				Type:       "ask",
+				Type:       orderbook.ASK,
 			}
 			ob.InsertOrder(askOrder)
 		}
@@ -415,13 +415,13 @@ func TestPerformanceRealData(t *testing.T) {
 
 	for _, order := range response.Asks {
 		order.UpdateType = "ADD" // As output.json doesn't contain update type (REST API response, not web socket with update type), we set it to "ADD"
-		order.Type = "ask"
+		order.Type = orderbook.ASK
 		ob.InsertOrder(&order)
 	}
 
 	for _, order := range response.Bids {
 		order.UpdateType = "ADD" // Same as above
-		order.Type = "bid"
+		order.Type = orderbook.BID
 		ob.InsertOrder(&order)
 	}
 
@@ -450,7 +450,7 @@ func BenchmarkPerformanceWithUpdate(b *testing.B) {
 				Price:      float64(100 + i%100),
 				Volume:     float64(10 + i%10),
 				UpdateType: "ADD",
-				Type:       "bid",
+				Type:       orderbook.BID,
 			}
 			ob.InsertOrder(order)
 
@@ -460,7 +460,7 @@ func BenchmarkPerformanceWithUpdate(b *testing.B) {
 					Price:      order.Price - 1,
 					Volume:     order.Volume,
 					UpdateType: "ADD",
-					Type:       "ask",
+					Type:       orderbook.ASK,
 				}
 				ob.InsertOrder(askOrder)
 			}
@@ -471,7 +471,7 @@ func BenchmarkPerformanceWithUpdate(b *testing.B) {
 					Price:      float64(100 + i%100),
 					Volume:     float64(10+i%10) - 5,
 					UpdateType: "MATCH",
-					Type:       "bid",
+					Type:       orderbook.BID,
 				}
 				ob.UpdateOrderVolume(updateOrder)
 			}
@@ -482,7 +482,7 @@ func BenchmarkPerformanceWithUpdate(b *testing.B) {
 					Price:      float64(100 + i%100),
 					Volume:     0,
 					UpdateType: "DELETE",
-					Type:       "bid",
+					Type:       orderbook.BID,
 				}
 				ob.RemoveOrder(deleteOrder)
 			}
@@ -506,7 +506,7 @@ func BenchmarkPerformanceSimpleAdd(b *testing.B) {
 				Price:      float64(100 + i%100),
 				Volume:     float64(10 + i%10),
 				UpdateType: "ADD",
-				Type:       "bid",
+				Type:       orderbook.BID,
 			}
 			ob.InsertOrder(order)
 
@@ -516,7 +516,7 @@ func BenchmarkPerformanceSimpleAdd(b *testing.B) {
 					Price:      order.Price - 1,
 					Volume:     order.Volume,
 					UpdateType: "ADD",
-					Type:       "ask",
+					Type:       orderbook.ASK,
 				}
 				ob.InsertOrder(askOrder)
 			}
@@ -553,13 +553,13 @@ func BenchmarkPerformanceRealData(b *testing.B) {
 
 		for _, order := range response.Asks {
 			order.UpdateType = "ADD"
-			order.Type = "ask"
+			order.Type = orderbook.ASK
 			ob.InsertOrder(&order)
 		}
 
 		for _, order := range response.Bids {
 			order.UpdateType = "ADD"
-			order.Type = "bid"
+			order.Type = orderbook.BID
 			ob.InsertOrder(&order)
 		}
 	}

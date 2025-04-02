@@ -2,19 +2,19 @@ package orderbook
 
 // Node represents a node in the red-black tree.
 type Node struct {
-	OrderList *OrderList
-	Key       float64
-	Color     Color
-	Left      *Node
-	Right     *Node
-	Parent    *Node
+	OrderList *OrderList // 8B
+	Key       float64    // 8B
+	Color     Color      // 1B
+	Left      *Node      // 8B
+	Right     *Node      // 8B
+	Parent    *Node      // 8B
 }
 
 type RBTree struct {
-	Root           *Node
-	BestPriceOrder *Order
-	leaf           *Node
-	len            int
+	Root           *Node  // 8B
+	BestPriceOrder *Order // 8B
+	leaf           *Node  // 8B
+	len            int    // 16B optional field, can be removed for optimisation
 }
 
 func (tree *RBTree) Len() int {
@@ -354,10 +354,10 @@ func (tree *RBTree) minimum(node *Node) *Node {
 	return node
 }
 
-func (tree *RBTree) findNode(price float64, orderType string) *Node {
+func (tree *RBTree) findNode(price float64, orderType OrderType) *Node {
 	currentNode := tree.Root
 	for currentNode != tree.leaf {
-		compareResult := orderType == "bid" && price > currentNode.Key || orderType == "ask" && price < currentNode.Key
+		compareResult := orderType == BID && price > currentNode.Key || orderType == ASK && price < currentNode.Key
 
 		if price == currentNode.Key {
 			return currentNode

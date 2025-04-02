@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"golang.org/x/net/websocket"
 	"log"
 	"log/slog"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"golang.org/x/net/websocket"
 )
 
 const (
@@ -147,14 +148,14 @@ func processOrderMessage(ctx context.Context, decoder *json.Decoder, ob *orderbo
 
 func processOrders(orderMessage api.OrderBookMessage, ob *orderbook.OrderBook, totalMessageCount *int) {
 	for _, ask := range orderMessage.Asks {
-		processOrder(ask, "ask", ob, totalMessageCount)
+		processOrder(ask, orderbook.ASK, ob, totalMessageCount)
 	}
 	for _, bid := range orderMessage.Bids {
-		processOrder(bid, "bid", ob, totalMessageCount)
+		processOrder(bid, orderbook.BID, ob, totalMessageCount)
 	}
 }
 
-func processOrder(order api.OrderLevel, orderType string, ob *orderbook.OrderBook, totalMessageCount *int) {
+func processOrder(order api.OrderLevel, orderType orderbook.OrderType, ob *orderbook.OrderBook, totalMessageCount *int) {
 	orderObj := orderbook.Order{
 		ID:     order.ID,
 		Price:  order.Price,

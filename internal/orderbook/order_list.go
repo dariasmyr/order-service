@@ -1,14 +1,14 @@
 package orderbook
 
 type OrderNode struct {
-	Order *Order
-	Next  *OrderNode
-	Prev  *OrderNode
+	Order *Order     // 8B
+	Next  *OrderNode // 8B
+	Prev  *OrderNode // 8B
 }
 
 type OrderList struct {
-	Head *OrderNode
-	Tail *OrderNode
+	Head *OrderNode // 8B
+	Tail *OrderNode // 8B
 }
 
 func (ol *OrderList) Append(order *Order) {

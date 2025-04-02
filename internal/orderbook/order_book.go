@@ -5,12 +5,12 @@ import (
 )
 
 type OrderBook struct {
-	SymbolID           string
-	BidTree            *RBTree
-	AskTree            *RBTree
-	MatchOrdersCount   int
-	AddedOrdersCount   int
-	RemovedOrdersCount int
+	SymbolID           string  // 16B
+	BidTree            *RBTree // 8B
+	AskTree            *RBTree // 8B
+	MatchOrdersCount   int     // 8B optional field, can be removed for optimisation
+	AddedOrdersCount   int     // 8B optional field, can be removed for optimisation
+	RemovedOrdersCount int     // 8B optional field, can be removed for optimisation
 }
 
 func NewOrderBook(symbolId string) *OrderBook {
@@ -29,7 +29,7 @@ func NewOrderBook(symbolId string) *OrderBook {
 }
 
 func (ob *OrderBook) RemoveOrder(order *Order) {
-	if order.Type == "bid" {
+	if order.Type == BID {
 		ob.BidTree.Remove(order)
 	} else {
 		ob.AskTree.Remove(order)
@@ -42,7 +42,7 @@ func (ob *OrderBook) UpdateOrderVolume(order *Order) {
 		ob.RemoveOrder(order)
 		return
 	}
-	if order.Type == "bid" {
+	if order.Type == BID {
 		ob.BidTree.UpdateOrderVolume(order)
 	} else {
 		ob.AskTree.UpdateOrderVolume(order)
@@ -57,7 +57,7 @@ func (ob *OrderBook) InsertOrder(order *Order) {
 	var oppositeTree *RBTree
 	var sameTree *RBTree
 
-	if order.Type == "ask" {
+	if order.Type == ASK {
 		oppositeTree = ob.BidTree // Buyers
 		sameTree = ob.AskTree     // Sellers
 	} else {
@@ -67,8 +67,8 @@ func (ob *OrderBook) InsertOrder(order *Order) {
 
 	// Check if opposite tree exists and has best orders to match
 	if oppositeTree.BestPriceOrder != nil &&
-		((order.Type == "bid" && order.Price >= oppositeTree.BestPriceOrder.Price) ||
-			(order.Type == "ask" && order.Price <= oppositeTree.BestPriceOrder.Price)) {
+		((order.Type == BID && order.Price >= oppositeTree.BestPriceOrder.Price) ||
+			(order.Type == ASK && order.Price <= oppositeTree.BestPriceOrder.Price)) {
 		// Order can aggressive, match it with opposite best orders
 		ob.MatchOrder(order, sameTree, oppositeTree)
 	} else {
@@ -77,8 +77,8 @@ func (ob *OrderBook) InsertOrder(order *Order) {
 		// Check if this order has the best price
 		if sameTree.BestPriceOrder == nil {
 			sameTree.BestPriceOrder = order
-		} else if (order.Type == "ask" && order.Price < sameTree.BestPriceOrder.Price) ||
-			(order.Type == "bid" && order.Price > sameTree.BestPriceOrder.Price) {
+		} else if (order.Type == ASK && order.Price < sameTree.BestPriceOrder.Price) ||
+			(order.Type == BID && order.Price > sameTree.BestPriceOrder.Price) {
 			// If the order has a better price, set it as the best price order
 			sameTree.BestPriceOrder = order
 		}
@@ -100,14 +100,14 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 		}
 
 		// Check if the best opposite order can be matched with the aggressive order
-		if (order.Type == "bid" && order.Price < oppositeTree.BestPriceOrder.Price) ||
-			(order.Type == "ask" && order.Price > oppositeTree.BestPriceOrder.Price) {
+		if (order.Type == BID && order.Price < oppositeTree.BestPriceOrder.Price) ||
+			(order.Type == ASK && order.Price > oppositeTree.BestPriceOrder.Price) {
 			// Cannot match, insert the order into the tree
 			sameTree.Insert(order)
 
 			// Update the best price order if the new order's price is better
-			if (order.Type == "bid" && (sameTree.BestPriceOrder == nil || order.Price > sameTree.BestPriceOrder.Price)) ||
-				(order.Type == "ask" && (sameTree.BestPriceOrder == nil || order.Price < sameTree.BestPriceOrder.Price)) {
+			if (order.Type == BID && (sameTree.BestPriceOrder == nil || order.Price > sameTree.BestPriceOrder.Price)) ||
+				(order.Type == ASK && (sameTree.BestPriceOrder == nil || order.Price < sameTree.BestPriceOrder.Price)) {
 				sameTree.BestPriceOrder = order
 			}
 
