@@ -39,6 +39,22 @@ PASS
 ok      order-service/internal/orderbook/tests  18.532s
 ```
 
+### Memory Allocations in Benchmark Match Case (3 Passive Orders + 1 Aggressive Order Match)
+See, that is a standard case (insert 3 passive bid orders, then insert one aggressive ask order that matches 2 bid orders) we get a total of 7 memory allocations:
+- 3 Allocations for Bid Orders as a new instance of the *orderbook.Order struct.
+- 3 Allocations for Tree Nodes in a RBTree for different prices
+- 1 Allocation for the OrderList: When a new node is created, a new OrderList is allocated to store the orders for that specific price level.
+
+```aiignore
+go test ./internal/orderbook/tests -run=^$ -bench=BenchmarkOrderMatch -benchmem 
+goos: linux
+goarch: amd64
+pkg: order-service/internal/orderbook/tests
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkOrderMatch-8            3514737               365.7 ns/op           328 B/op          7 allocs/op
+PASS
+```
+
 ![full_book](docs/workflow.png)
 
 ## Orderbook Mechanics

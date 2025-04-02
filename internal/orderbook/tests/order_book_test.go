@@ -74,7 +74,6 @@ func TestOrderMatching(t *testing.T) {
 	ob.InsertOrder(askOrder)
 
 	// Verify the best opposite order was removed after matching
-	fmt.Printf("%+v/n", ob.BidTree.BestPriceOrder)
 	if ob.BidTree.BestPriceOrder.Volume != 0.14185082999999998 {
 		fmt.Printf("Bid order: %v\n", ob.BidTree.BestPriceOrder)
 		t.Errorf("Bid order volume should be reduced after matching")
@@ -438,6 +437,35 @@ func TestPerformanceRealData(t *testing.T) {
 
 }
 
+func BenchmarkOrderMatch(b *testing.B) {
+	ob := orderbook.NewOrderBook("BTC_USDT")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+
+		// Insert bid orders
+		bidOrders := []*orderbook.Order{
+			{Type: orderbook.BID, ID: "50532ea1ccbb-4c84-448a-9c5d-3c5e789c", Price: 272.83, Volume: 18},
+			{Type: orderbook.BID, ID: "c64a76ba-5107-4c1b-b788-271ee88df318", Price: 272.83, Volume: 0.64185083},
+			{Type: orderbook.BID, ID: "3c5e789c-4c84-448a-9c5d-50532ea1ccbb", Price: 272.82, Volume: 0.641},
+		}
+
+		for _, order := range bidOrders {
+			ob.InsertOrder(order)
+		}
+
+		// Insert an ask order that can match the bid orders
+		askOrder := &orderbook.Order{
+			Type:       orderbook.ASK,
+			UpdateType: "ADD",
+			ID:         "3c5e789c-4c84-448a-9c5d-50532ea1ccbb",
+			Price:      272.83,
+			Volume:     18.5,
+		}
+
+		ob.InsertOrder(askOrder)
+	}
+}
+
 func BenchmarkPerformanceWithUpdate(b *testing.B) {
 	ob := orderbook.NewOrderBook("BTC_USDT")
 	numOrders := 275121
@@ -487,9 +515,6 @@ func BenchmarkPerformanceWithUpdate(b *testing.B) {
 				ob.RemoveOrder(deleteOrder)
 			}
 		}
-
-		//added, removed, match := ob.GetOrderStats()
-		//fmt.Printf("Order book stats: added: %d, removed: %d, match: %d\n", added, removed, match)
 	}
 	b.ReportAllocs()
 }
