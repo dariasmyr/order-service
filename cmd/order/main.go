@@ -174,6 +174,12 @@ func processOrder(order api.OrderLevel, orderType orderbook.OrderType, ob *order
 	case "MATCH":
 		*totalMessageCount++
 		ob.UpdateOrderVolume(&orderObj)
+	case "UPDATE":
+		*totalMessageCount++
+		ob.UpdateOrderVolume(&orderObj)
+	case "SUBTRACT":
+		*totalMessageCount++
+		ob.UpdateOrderVolume(&orderObj)
 	case "DELETE":
 		*totalMessageCount++
 		ob.RemoveOrder(&orderObj)
