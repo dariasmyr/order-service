@@ -1,7 +1,9 @@
 # Order Matching Engine
 
 ## Description
-An **high-performance**, **low-latency** order matching engine designed to process orders in from external API. The engine maintains order books using Red-Black (RB) trees for optimized O(log N) search and linked lists for **FIFO** execution. The system is scalable and can be integrated with external services via **gRPC streaming** or message brokers.
+A **high-performance**, **low-latency** order matching engine designed to process orders in from external API. The engine maintains order books using Red-Black (RB) trees for optimized O(log N) search and linked lists for **FIFO** execution. The system is scalable and can be integrated with external services via **gRPC streaming** or message brokers.
+
+The engine maintains an orderbook that receives order and defines whether order is aggressive order (so we match it with the best opposite order) or passive (so we store it in RAM as a RB tree node with linked list in each node).
 
 ### Key Features:
 - Implements an order book with **price-time priority**
