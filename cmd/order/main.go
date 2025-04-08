@@ -104,13 +104,12 @@ func main() {
 	totalMessageCount := 0
 
 	go func() {
-		ticker := time.NewTicker(5 * time.Second)
+		timer := time.NewTicker(5 * time.Second)
 		for {
 			select {
 			case <-ctx.Done():
-				ticker.Stop()
 				return
-			case <-ticker.C:
+			case <-timer.C:
 				addedCount, removedCount, matchCount := ob.GetOrderStats()
 				logger.Info("STATS", "total_messages", totalMessageCount, "match", matchCount, "added", addedCount, "removed", removedCount)
 				if ob.BidTree.BestPriceOrder != nil {
@@ -126,11 +125,13 @@ func main() {
 }
 
 func processOrderMessage(ctx context.Context, decoder *json.Decoder, ob *orderbook.OrderBook, totalMessageCount *int) {
+	timer := time.NewTicker(5 * time.Second)
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(5 * time.Second):
+		case <-timer.C:
 			log.Println("Warning: No data received for 5 seconds")
 		default:
 			var orderMessage api.OrderBookMessage
