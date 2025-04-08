@@ -71,7 +71,7 @@ func main() {
 		Heartbeat:             true,
 		Apikey:                cfg.APIKey,
 		SubscribeDataType:     []string{"book_l3"},
-		SubscribeFilterSymbol: []string{"COINBASE_SPOT_BTC_USD"},
+		SubscribeFilterSymbol: []string{"COINBASE_SPOT_BTC_USD", "COINBASE_SPOT_ETH_USD"},
 	}
 
 	subscriptionJSON, err := json.Marshal(subscription)
@@ -99,7 +99,10 @@ func main() {
 	reader := bufio.NewReader(ws)
 	decoder := json.NewDecoder(reader)
 
-	ob := orderbook.NewOrderBook("BTC_USDT")
+	messageChannel := make(chan api.OrderBookMessage)
+
+	btcOrderBook := orderbook.NewOrderBook("COINBASE_SPOT_BTC_USD")
+	ethOrderBook := orderbook.NewOrderBook("COINBASE_SPOT_ETH_USD")
 
 	totalMessageCount := 0
 
@@ -110,24 +113,33 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-timer.C:
-				addedCount, removedCount, matchCount := ob.GetOrderStats()
-				logger.Info("STATS", "total_messages", totalMessageCount, "match", matchCount, "added", addedCount, "removed", removedCount)
-				if ob.BidTree.BestPriceOrder != nil {
-					logger.Info("BEST_BID", "price", ob.BidTree.BestPriceOrder.Price, "volume", ob.BidTree.BestPriceOrder.Volume)
+				addedCount, removedCount, matchCount := btcOrderBook.GetOrderStats()
+				logger.Info("BTC OrderBook Stats", "total_messages", totalMessageCount, "match", matchCount, "added", addedCount, "removed", removedCount)
+				if btcOrderBook.BidTree.BestPriceOrder != nil {
+					logger.Info("BTC Best Bid", "price", btcOrderBook.BidTree.BestPriceOrder.Price, "volume", btcOrderBook.BidTree.BestPriceOrder.Volume)
 				}
-				if ob.AskTree.BestPriceOrder != nil {
-					logger.Info("BEST_ASK", "price", ob.AskTree.BestPriceOrder.Price, "volume", ob.AskTree.BestPriceOrder.Volume)
+				if btcOrderBook.AskTree.BestPriceOrder != nil {
+					logger.Info("BTC Best Ask", "price", btcOrderBook.AskTree.BestPriceOrder.Price, "volume", btcOrderBook.AskTree.BestPriceOrder.Volume)
+				}
+
+				addedCount, removedCount, matchCount = ethOrderBook.GetOrderStats()
+				logger.Info("ETH OrderBook Stats", "total_messages", totalMessageCount, "match", matchCount, "added", addedCount, "removed", removedCount)
+				if ethOrderBook.BidTree.BestPriceOrder != nil {
+					logger.Info("ETH Best Bid", "price", ethOrderBook.BidTree.BestPriceOrder.Price, "volume", ethOrderBook.BidTree.BestPriceOrder.Volume)
+				}
+				if ethOrderBook.AskTree.BestPriceOrder != nil {
+					logger.Info("ETH Best Ask", "price", ethOrderBook.AskTree.BestPriceOrder.Price, "volume", ethOrderBook.AskTree.BestPriceOrder.Volume)
 				}
 			}
 		}
 	}()
-	processOrderMessage(ctx, decoder, ob, &totalMessageCount)
-}
 
-func processOrderMessage(ctx context.Context, decoder *json.Decoder, ob *orderbook.OrderBook, totalMessageCount *int) {
-	timer := time.NewTicker(5 * time.Second)
+	go processOrderBook(ctx, messageChannel, btcOrderBook, &totalMessageCount)
+
+	go processOrderBook(ctx, messageChannel, ethOrderBook, &totalMessageCount)
 
 	for {
+		timer := time.NewTicker(5 * time.Second)
 		select {
 		case <-ctx.Done():
 			return
@@ -141,8 +153,24 @@ func processOrderMessage(ctx context.Context, decoder *json.Decoder, ob *orderbo
 			}
 
 			if orderMessage.Type == "book_l3" {
-				processOrders(orderMessage, ob, totalMessageCount)
+				//fmt.Printf("Received book l3 order message: %v\n", orderMessage)
+				messageChannel <- orderMessage
 			}
+		}
+	}
+}
+
+func processOrderBook(ctx context.Context, messageChannel chan api.OrderBookMessage, ob *orderbook.OrderBook, totalMessageCount *int) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case orderMessage := <-messageChannel:
+			if orderMessage.SymbolID != ob.SymbolID {
+				continue
+			}
+
+			processOrders(orderMessage, ob, totalMessageCount)
 		}
 	}
 }
@@ -157,6 +185,9 @@ func processOrders(orderMessage api.OrderBookMessage, ob *orderbook.OrderBook, t
 }
 
 func processOrder(order api.OrderLevel, orderType orderbook.OrderType, ob *orderbook.OrderBook, totalMessageCount *int) {
+	if order.ID == "" {
+		return
+	}
 	orderObj := orderbook.Order{
 		ID:     order.ID,
 		Price:  order.Price,
@@ -171,9 +202,18 @@ func processOrder(order api.OrderLevel, orderType orderbook.OrderType, ob *order
 	case "MATCH":
 		*totalMessageCount++
 		ob.UpdateOrderVolume(&orderObj)
+	case "UPDATE":
+		*totalMessageCount++
+		ob.UpdateOrderVolume(&orderObj)
+	case "SUBTRACT":
+		*totalMessageCount++
+		ob.UpdateOrderVolume(&orderObj)
 	case "DELETE":
 		*totalMessageCount++
 		ob.RemoveOrder(&orderObj)
+	case "":
+		*totalMessageCount++
+		ob.InsertOrder(&orderObj)
 	}
 }
 

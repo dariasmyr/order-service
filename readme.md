@@ -1,7 +1,9 @@
 # Order Matching Engine
 
 ## Description
-An **high-performance**, **low-latency** order matching engine designed to process orders in from external API. The engine maintains order books using Red-Black (RB) trees for optimized O(log N) search and linked lists for **FIFO** execution. The system is scalable and can be integrated with external services via **gRPC streaming** or message brokers.
+A **high-performance**, **low-latency** order matching engine designed to process orders in from external API. The engine maintains order books using Red-Black (RB) trees for optimized O(log N) search and linked lists for **FIFO** execution. The system is scalable and can be integrated with external services via **gRPC streaming** or message brokers.
+
+The engine maintains an orderbook that receives order and defines whether order is aggressive order (so we match it with the best opposite order) or passive (so we store it in RAM as a RB tree node with linked list in each node).
 
 ### Key Features:
 - Implements an order book with **price-time priority**
@@ -13,7 +15,7 @@ An **high-performance**, **low-latency** order matching engine designed to proce
 - **gRPC streaming** to notify external services upon order match
 - **O(log N) search time complexity** for locating specific orders, ensuring fast modifications and deletions
 
-All tests, including benchmark tests, are available in the `tests` folder. This includes unit tests for order processing, RB tree operations, and performance benchmarks.
+All tests, including benchmark tests, are available in the `tests` folder.
 
 ![full_book](docs/workflow.png)
 
@@ -39,26 +41,42 @@ The order matching engine processes orders from **CoinAPI via WebSocket**. For e
 2. **Passive Orders:** If an order does not immediately match an existing order, it is simply added to the order book in its respective RB tree.
 3. **gRPC Notifications:** Whenever an order match occurs, order details are streamed via **gRPC** to an external service (e.g., a notification service).
 
-## Performance
-The engine has been benchmarked on Windows and Linux with the following results:
+## Perfomance
+About 275 thousand orders were processed in ~1.8 sec, including additions, status updates, and random deletions, so we process approximately 150k orders per 1 second.
 
-### Windows Performance
-- **CPU:** 11th Gen Intel® Core™ i5-11400 @ 2.60GHz  
-- **OS:** Windows (amd64)  
-- **Orders Processed:** 275,121
-- **Orders Matched:** 70,178
-- **Execution Time:** ~2.27s
-- **Memory Usage:** 38.8 MB
-- **Throughput:** ~121,674 orders per second
+The engine has been benchmarked with the following results:
+```aiignore
+go test ./internal/orderbook/tests -run=^$ -bench=BenchmarkPerformanceWithUpdate -count=10
+goos: linux
+goarch: amd64
+pkg: order-service/internal/orderbook/tests
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkPerformanceWithUpdate-8               1        1969563363 ns/op        38842496 B/op    1447349 allocs/op
+BenchmarkPerformanceWithUpdate-8               1        2054449095 ns/op        38837312 B/op    1447346 allocs/op
+BenchmarkPerformanceWithUpdate-8               1        1820713893 ns/op        38831648 B/op    1447337 allocs/op
+BenchmarkPerformanceWithUpdate-8               1        1794104408 ns/op        38831632 B/op    1447336 allocs/op
+BenchmarkPerformanceWithUpdate-8               1        1753715310 ns/op        38831728 B/op    1447337 allocs/op
+BenchmarkPerformanceWithUpdate-8               1        1818219918 ns/op        38832592 B/op    1447347 allocs/op
+BenchmarkPerformanceWithUpdate-8               1        1820063659 ns/op        38830832 B/op    1447324 allocs/op
+BenchmarkPerformanceWithUpdate-8               1        1835274567 ns/op        38832016 B/op    1447339 allocs/op
+BenchmarkPerformanceWithUpdate-8               1        1826892197 ns/op        38831856 B/op    1447337 allocs/op
+BenchmarkPerformanceWithUpdate-8               1        1817778116 ns/op        38832496 B/op    1447345 allocs/op
+PASS
+ok      order-service/internal/orderbook/tests  18.532s
+```
 
-### Linux Performance
-- **CPU:** 11th Gen Intel® Core™ i7-1165G7 @ 2.80GHz  
-- **OS:** Linux (amd64)  
-- **Orders Processed:** 275,121
-- **Orders Matched:** 70,178
-- **Execution Time:** ~3.37s
-- **Memory Usage:** 38.8 MB
-- **Throughput:** ~81,770 orders per second
+### Memory Allocations in Benchmark Match Case (3 Passive Orders + 1 Aggressive Order Match)
+See, that is a standard case (insert 3 passive bid orders, then insert one aggressive ask order that matches 2 bid orders) we get a total of 7 memory allocations:
+- 3 Allocations for Bid Orders as a new instance of the *orderbook.Order struct.
+- 3 Allocations for Tree Nodes in a RBTree for different prices
+- 1 Allocation for the OrderList: When a new node is created, a new OrderList is allocated to store the orders for that specific price level.
 
-
-
+```aiignore
+go test ./internal/orderbook/tests -run=^$ -bench=BenchmarkOrderMatch -benchmem 
+goos: linux
+goarch: amd64
+pkg: order-service/internal/orderbook/tests
+cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+BenchmarkOrderMatch-8            3514737               365.7 ns/op           328 B/op          7 allocs/op
+PASS
+```
