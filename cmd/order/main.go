@@ -9,10 +9,12 @@ import (
 	"net/http"
 	"net/url"
 	"order-service/config"
+	"order-service/internal/kafka"
 	"order-service/internal/orderbook"
 	"order-service/models/api"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -37,6 +39,14 @@ func main() {
 	cfg := config.MustLoad()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	kafkaService, err := kafka.NewProducer()
+	if err != nil {
+		log.Fatalf("Error creating Kafka producer: %s", err)
+	}
+	defer kafkaService.Close()
+
+	kafkaService.StartListening()
 
 	logger := setupLogger(cfg.Env)
 	logger.Info("Starting order matcher", "env", cfg.Env)
@@ -71,7 +81,7 @@ func main() {
 		Heartbeat:             true,
 		Apikey:                cfg.APIKey,
 		SubscribeDataType:     []string{"book_l3"},
-		SubscribeFilterSymbol: []string{"COINBASE_SPOT_BTC_USD", "COINBASE_SPOT_ETH_USD"},
+		SubscribeFilterSymbol: []string{"COINBASE_SPOT_BTC_USDT", "COINBASE_SPOT_ETH_USDT"},
 	}
 
 	subscriptionJSON, err := json.Marshal(subscription)
@@ -101,8 +111,8 @@ func main() {
 
 	messageChannel := make(chan api.OrderBookMessage)
 
-	btcOrderBook := orderbook.NewOrderBook("COINBASE_SPOT_BTC_USD")
-	ethOrderBook := orderbook.NewOrderBook("COINBASE_SPOT_ETH_USD")
+	btcOrderBook := orderbook.NewOrderBook("COINBASE_SPOT_BTC_USDT")
+	ethOrderBook := orderbook.NewOrderBook("COINBASE_SPOT_ETH_USDT")
 
 	totalMessageCount := 0
 
@@ -117,9 +127,17 @@ func main() {
 				logger.Info("BTC OrderBook Stats", "total_messages", totalMessageCount, "match", matchCount, "added", addedCount, "removed", removedCount)
 				if btcOrderBook.BidTree.BestPriceOrder != nil {
 					logger.Info("BTC Best Bid", "price", btcOrderBook.BidTree.BestPriceOrder.Price, "volume", btcOrderBook.BidTree.BestPriceOrder.Volume)
+					err := kafkaService.SendMessage("COINBASE_SPOT_BTC_USD", "AAA"+strconv.Itoa(int(btcOrderBook.AskTree.BestPriceOrder.Price)), "AAAAA")
+					if err != nil {
+						logger.Error("Failed to send message:", err)
+					}
 				}
 				if btcOrderBook.AskTree.BestPriceOrder != nil {
 					logger.Info("BTC Best Ask", "price", btcOrderBook.AskTree.BestPriceOrder.Price, "volume", btcOrderBook.AskTree.BestPriceOrder.Volume)
+					err := kafkaService.SendMessage("COINBASE_SPOT_BTC_USD", "BBB"+strconv.Itoa(int(btcOrderBook.AskTree.BestPriceOrder.Price)), "BBBBB")
+					if err != nil {
+						logger.Error("Failed to send message:", err)
+					}
 				}
 
 				addedCount, removedCount, matchCount = ethOrderBook.GetOrderStats()
@@ -153,7 +171,7 @@ func main() {
 			}
 
 			if orderMessage.Type == "book_l3" {
-				//fmt.Printf("Received book l3 order message: %v\n", orderMessage)
+				//fmt.Printf("Received book l3 order message: %+v\n", orderMessage)
 				messageChannel <- orderMessage
 			}
 		}
