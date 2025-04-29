@@ -3,15 +3,24 @@ package config
 import (
 	"flag"
 	"fmt"
-	"os"
-
 	"github.com/ilyakaznacheev/cleanenv"
+	"os"
 )
 
 type Config struct {
-	Env         string `yaml:"env" env-default:"local"`
-	StoragePath string `yaml:"storage_path" env-required:"true"`
-	APIKey      string `yaml:"api_key" env-required:"true"`
+	Env         string      `yaml:"env" env-default:"local"`
+	StoragePath string      `yaml:"storage_path" env-required:"true"`
+	APIKey      string      `yaml:"api_key" env-required:"true"`
+	Kafka       kafkaConfig `yaml:"kafka" env-required:"true"`
+}
+
+type kafkaConfig struct {
+	FlushTimeoutMs    int    `yaml:"flush_timeout" env-required:"true" default:"10"`
+	BoostrapServerURL string `yaml:"boostrap_server_url" env-required:"true"`
+	SASLUsername      string `yaml:"sasl_username" env-required:"true"`
+	SASLPassword      string `yaml:"sasl_password" env-required:"true"`
+	CALocation        string `yaml:"ca_location" env-required:"true"`
+	SSLPassword       string `yaml:"ssl_password" env-required:"true"`
 }
 
 func MustLoad() *Config {

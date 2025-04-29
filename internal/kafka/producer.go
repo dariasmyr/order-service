@@ -1,20 +1,27 @@
 package kafka
 
 import (
+	"context"
 	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"log"
+	"log/slog"
 	"os"
 )
 
 type Producer struct {
+	logger   *slog.Logger
 	producer *kafka.Producer
 }
 
-func NewProducer() (*Producer, error) {
+func NewProducer(
+	logger *slog.Logger,
+	boostrapServers string,
+	saslUsername string,
+	saslPassword string,
+	caLocation string,
+	sslPassword string,
 
-	caLocation := "pem/ca-root.pem"
-
+) (*Producer, error) {
 	if _, err := os.Stat(caLocation); os.IsNotExist(err) {
 		return nil, fmt.Errorf("CA file not found at path: %s", caLocation)
 	} else if err != nil {
@@ -24,18 +31,18 @@ func NewProducer() (*Producer, error) {
 	}
 
 	config := &kafka.ConfigMap{
-		"bootstrap.servers":                     "localhost:29092",
-		"sasl.username":                         "sa",
-		"sasl.password":                         "000000",
+		"bootstrap.servers":                     boostrapServers,
+		"sasl.username":                         saslUsername,
+		"sasl.password":                         saslPassword,
 		"acks":                                  "all",
 		"enable.idempotence":                    false,
 		"sasl.mechanism":                        "PLAIN",
 		"security.protocol":                     "SASL_SSL",
 		"ssl.endpoint.identification.algorithm": "none",
-		"ssl.key.password":                      "supersecret",
+		"ssl.key.password":                      sslPassword,
 		"ssl.ca.location":                       caLocation,
-		"client.id":                             "go-producer",
-		//"debug":                                 "all",
+		"client.id":                             "order-producer",
+		//"debug":                                 "all", // For debug messages
 	}
 
 	producer, err := kafka.NewProducer(config)
@@ -44,24 +51,58 @@ func NewProducer() (*Producer, error) {
 		return nil, err
 	}
 
-	return &Producer{producer}, nil
+	return &Producer{logger, producer}, nil
 }
 
-func (s *Producer) Close() {
-	s.producer.Close()
+func (p *Producer) Close() {
+	p.producer.Close()
 }
 
-// SendMessage отправляет сообщение в Kafka
-func (s *Producer) SendMessage(topic string, key string, value string) error {
-	// Создаем сообщение Kafka
+func (p *Producer) CreateTopic(ctx context.Context, topic string, numPartitions int, replicationFactor int) error {
+	admin, err := kafka.NewAdminClientFromProducer(p.producer)
+	if err != nil {
+		return fmt.Errorf("error creating admin client from producer: %v", err)
+	}
+	defer admin.Close()
+
+	results, topicErr := admin.CreateTopics(
+		ctx,
+		[]kafka.TopicSpecification{{
+			Topic:             topic,
+			NumPartitions:     numPartitions,
+			ReplicationFactor: replicationFactor,
+		}},
+		nil,
+	)
+
+	if topicErr != nil {
+		return fmt.Errorf("error creating topic: %v", topicErr)
+	}
+
+	for _, result := range results {
+		switch result.Error.Code() {
+		case kafka.ErrNoError:
+			p.logger.Info("Topic created successfully", "topic", topic)
+			return nil
+		case kafka.ErrTopicAlreadyExists:
+			p.logger.Info("Topic %s already exists", topic)
+			return nil
+		default:
+			return fmt.Errorf("error ensuring topic: %s", result.Error.Code())
+		}
+	}
+
+	return nil
+}
+
+func (p *Producer) SendMessage(topic string, key string, value string) error {
 	msg := &kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Key:            []byte(key),
 		Value:          []byte(value),
 	}
 
-	// Отправляем сообщение в Kafka
-	err := s.producer.Produce(msg, nil)
+	err := p.producer.Produce(msg, nil)
 	if err != nil {
 		return fmt.Errorf("failed to send message to Kafka: %s", err)
 	}
@@ -69,18 +110,19 @@ func (s *Producer) SendMessage(topic string, key string, value string) error {
 	return nil
 }
 
-// StartListening для обработки событий
-func (s *Producer) StartListening() {
+type DeliveryHandlerFunc func(delivery *kafka.Message)
+
+func (p *Producer) StartListeningWithHandler(handler DeliveryHandlerFunc) {
 	go func() {
-		for e := range s.producer.Events() {
+		for e := range p.producer.Events() {
 			switch ev := e.(type) {
 			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					log.Printf("Failed to deliver message: %v\n", ev.TopicPartition)
-				} else {
-					log.Printf("Produced message to topic %s: key = %-10s value = %s\n", *ev.TopicPartition.Topic, string(ev.Key), string(ev.Value))
-				}
+				handler(ev)
 			}
 		}
 	}()
+}
+
+func (p *Producer) Flush(timeoutMs int) {
+	p.producer.Flush(timeoutMs)
 }
