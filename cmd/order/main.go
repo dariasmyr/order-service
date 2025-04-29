@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"log"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"order-service/config"
-	"order-service/internal/kafka"
+	kafkaProducer "order-service/internal/kafka"
 	"order-service/internal/orderbook"
 	"order-service/models/api"
 	"os"
@@ -40,19 +41,32 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	kafkaService, err := kafka.NewProducer()
-	if err != nil {
-		log.Fatalf("Error creating Kafka producer: %s", err)
-	}
-	defer kafkaService.Close()
-
-	kafkaService.StartListening()
-
 	logger := setupLogger(cfg.Env)
 	logger.Info("Starting order matcher", "env", cfg.Env)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
+
+	kafkaService, err := kafkaProducer.NewProducer(
+		logger,
+		cfg.Kafka.BoostrapServerURL,
+		cfg.Kafka.SASLUsername,
+		cfg.Kafka.SASLPassword,
+		cfg.Kafka.CALocation,
+		cfg.Kafka.SSLPassword,
+	)
+	if err != nil {
+		log.Fatalf("Error creating Kafka producer: %s", err)
+	}
+	defer kafkaService.Close()
+
+	kafkaService.StartListeningWithHandler(func(message *kafka.Message) {
+		if message.TopicPartition.Error != nil {
+			log.Printf("Failed to deliver message: %v\n", message.TopicPartition)
+		} else {
+			log.Printf("Delivered message to topic %s[%d] at offset %v: key = %-10s value = %s\n", *message.TopicPartition.Topic, message.TopicPartition.Partition, message.TopicPartition.Offset, string(message.Key), string(message.Value))
+		}
+	})
 
 	headers := http.Header{}
 	originURL, err := url.Parse("http://localhost/")
@@ -104,6 +118,9 @@ func main() {
 		if err != nil {
 			logger.Error("Error closing WebSocket:", "err", err)
 		}
+		logger.Info("WebSocket stopped")
+		kafkaService.Flush(cfg.Kafka.FlushTimeoutMs)
+
 	}()
 
 	reader := bufio.NewReader(ws)
