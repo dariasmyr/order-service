@@ -11,11 +11,11 @@ import (
 	"net/url"
 	"order-service/config"
 	kafkaProducer "order-service/internal/kafka"
+	"order-service/internal/lib/logger/sl"
 	"order-service/internal/orderbook"
 	"order-service/models/api"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -62,11 +62,13 @@ func main() {
 
 	kafkaService.StartListeningWithHandler(func(message *kafka.Message) {
 		if message.TopicPartition.Error != nil {
-			log.Printf("Failed to deliver message: %v\n", message.TopicPartition)
+			logger.Error("Failed to deliver message: ", "topic", message.TopicPartition)
 		} else {
-			log.Printf("Delivered message to topic %s[%d] at offset %v: key = %-10s value = %s\n", *message.TopicPartition.Topic, message.TopicPartition.Partition, message.TopicPartition.Offset, string(message.Key), string(message.Value))
+			logger.Info("Delivered message to topic %s[%d] at offset %v: key = %-10s value = %s\n", *message.TopicPartition.Topic, message.TopicPartition.Partition, message.TopicPartition.Offset, string(message.Key), string(message.Value))
 		}
 	})
+
+	kafkaService.ProduceAsync(ctx)
 
 	headers := http.Header{}
 	originURL, err := url.Parse("http://localhost/")
@@ -128,11 +130,20 @@ func main() {
 
 	messageChannel := make(chan api.OrderBookMessage)
 
-	btcOrderBook := orderbook.NewOrderBook("COINBASE_SPOT_BTC_USDT")
-	ethOrderBook := orderbook.NewOrderBook("COINBASE_SPOT_ETH_USDT")
+	btcOrderBook := orderbook.NewOrderBook("COINBASE_SPOT_BTC_USDT", logger, kafkaService)
+	err = kafkaService.CreateTopic(ctx, "COINBASE_SPOT_BTC_USDT", 3, 3)
+	if err != nil {
+		log.Fatalf("Error creating topic: %s", err)
+	}
+	ethOrderBook := orderbook.NewOrderBook("COINBASE_SPOT_ETH_USDT", logger, kafkaService)
+	err = kafkaService.CreateTopic(ctx, "COINBASE_SPOT_ETH_USDT", 3, 3)
+	if err != nil {
+		log.Fatalf("Error creating topic: %s", err)
+	}
 
 	totalMessageCount := 0
 
+	// Stats cron, can be removed later
 	go func() {
 		timer := time.NewTicker(5 * time.Second)
 		for {
@@ -144,14 +155,12 @@ func main() {
 				logger.Info("BTC OrderBook Stats", "total_messages", totalMessageCount, "match", matchCount, "added", addedCount, "removed", removedCount)
 				if btcOrderBook.BidTree.BestPriceOrder != nil {
 					logger.Info("BTC Best Bid", "price", btcOrderBook.BidTree.BestPriceOrder.Price, "volume", btcOrderBook.BidTree.BestPriceOrder.Volume)
-					err := kafkaService.SendMessage("COINBASE_SPOT_BTC_USD", "AAA"+strconv.Itoa(int(btcOrderBook.AskTree.BestPriceOrder.Price)), "AAAAA")
 					if err != nil {
 						logger.Error("Failed to send message:", err)
 					}
 				}
 				if btcOrderBook.AskTree.BestPriceOrder != nil {
 					logger.Info("BTC Best Ask", "price", btcOrderBook.AskTree.BestPriceOrder.Price, "volume", btcOrderBook.AskTree.BestPriceOrder.Volume)
-					err := kafkaService.SendMessage("COINBASE_SPOT_BTC_USD", "BBB"+strconv.Itoa(int(btcOrderBook.AskTree.BestPriceOrder.Price)), "BBBBB")
 					if err != nil {
 						logger.Error("Failed to send message:", err)
 					}
@@ -179,12 +188,12 @@ func main() {
 		case <-ctx.Done():
 			return
 		case <-timer.C:
-			log.Println("Warning: No data received for 5 seconds")
+			logger.Warn("Warning: No data received for 5 seconds")
 		default:
 			var orderMessage api.OrderBookMessage
-			err := decoder.Decode(&orderMessage)
+			err = decoder.Decode(&orderMessage)
 			if err != nil {
-				log.Println("JSON decode error:", err)
+				logger.Error("JSON decode error:", sl.Err(err))
 			}
 
 			if orderMessage.Type == "book_l3" {

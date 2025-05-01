@@ -2,15 +2,19 @@ package kafka
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"log/slog"
+	"order-service/internal/lib/logger/sl"
+	"order-service/internal/orderbook"
 	"os"
 )
 
 type Producer struct {
-	logger   *slog.Logger
-	producer *kafka.Producer
+	logger      *slog.Logger
+	producer    *kafka.Producer
+	messageChan chan *kafka.Message
 }
 
 func NewProducer(
@@ -20,7 +24,6 @@ func NewProducer(
 	saslPassword string,
 	caLocation string,
 	sslPassword string,
-
 ) (*Producer, error) {
 	if _, err := os.Stat(caLocation); os.IsNotExist(err) {
 		return nil, fmt.Errorf("CA file not found at path: %s", caLocation)
@@ -34,8 +37,8 @@ func NewProducer(
 		"bootstrap.servers":                     boostrapServers,
 		"sasl.username":                         saslUsername,
 		"sasl.password":                         saslPassword,
-		"acks":                                  "all",
-		"enable.idempotence":                    false,
+		"acks":                                  "all", // change to "all" if you need write confirmation from all in sync replicas
+		"enable.idempotence":                    true,  // true if "acks":"all"
 		"sasl.mechanism":                        "PLAIN",
 		"security.protocol":                     "SASL_SSL",
 		"ssl.endpoint.identification.algorithm": "none",
@@ -51,7 +54,25 @@ func NewProducer(
 		return nil, err
 	}
 
-	return &Producer{logger, producer}, nil
+	messageChan := make(chan *kafka.Message, 100000)
+
+	return &Producer{logger, producer, messageChan}, nil
+}
+
+func (p *Producer) ProduceAsync(ctx context.Context) {
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				p.logger.Error("Context closed, stopping producing messages to kafka")
+				return
+			case msg := <-p.messageChan:
+				if err := p.producer.Produce(msg, nil); err != nil {
+					p.logger.Error("Failed to produce message", "error", sl.Err(err))
+				}
+			}
+		}
+	}()
 }
 
 func (p *Producer) Close() {
@@ -95,19 +116,27 @@ func (p *Producer) CreateTopic(ctx context.Context, topic string, numPartitions 
 	return nil
 }
 
-func (p *Producer) SendMessage(topic string, key string, value string) error {
-	msg := &kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		Key:            []byte(key),
-		Value:          []byte(value),
+func (p *Producer) BroadcastMessage(event *orderbook.MatchEvent) error {
+	if event == nil {
+		return fmt.Errorf("nil match event")
 	}
 
-	err := p.producer.Produce(msg, nil)
+	payload, err := json.Marshal(event)
 	if err != nil {
-		return fmt.Errorf("failed to send message to Kafka: %s", err)
+		return fmt.Errorf("failed to marshal event: %w", err)
 	}
 
-	return nil
+	msg := &kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &event.SymbolId, Partition: kafka.PartitionAny},
+		Value:          payload,
+	}
+
+	select {
+	case p.messageChan <- msg:
+		return nil
+	default:
+		return fmt.Errorf("producer queue full, dropping message")
+	}
 }
 
 type DeliveryHandlerFunc func(delivery *kafka.Message)
