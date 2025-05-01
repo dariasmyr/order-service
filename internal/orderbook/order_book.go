@@ -1,22 +1,39 @@
 package orderbook
 
 import (
+	"log/slog"
 	"math"
+	"order-service/internal/lib/logger/sl"
 )
 
+type MatchEvent struct {
+	SymbolId            string  `json:"symbol_id"`
+	BidOrder            *Order  `json:"bid_order"`
+	AskOrder            *Order  `json:"ask_order"`
+	ExecutedTradeVolume float64 `json:"executed_trade_volume"`
+}
+
+type Broadcaster interface {
+	BroadcastMessage(event *MatchEvent) error
+}
+
 type OrderBook struct {
+	logger             *slog.Logger
 	SymbolID           string  // 16B
 	BidTree            *RBTree // 8B
 	AskTree            *RBTree // 8B
 	MatchOrdersCount   int     // 8B optional field, can be removed for optimisation
 	AddedOrdersCount   int     // 8B optional field, can be removed for optimisation
 	RemovedOrdersCount int     // 8B optional field, can be removed for optimisation
+	Broadcaster        Broadcaster
 }
 
-func NewOrderBook(symbolId string) *OrderBook {
+func NewOrderBook(symbolId string, logger *slog.Logger, broadcaster Broadcaster) *OrderBook {
 	leafNode := &Node{Color: BLACK}
 	return &OrderBook{
-		SymbolID: symbolId,
+		logger:      logger,
+		Broadcaster: broadcaster,
+		SymbolID:    symbolId,
 		BidTree: &RBTree{
 			Root: leafNode,
 			leaf: leafNode,
@@ -122,7 +139,28 @@ func (ob *OrderBook) MatchOrder(order *Order, sameTree *RBTree, oppositeTree *RB
 			break
 		}
 
-		// fmt.Printf("Matched %s order with price %f, volume %f and %s order id %s with price %f and volume %f trade volume %f \n", order.Type, order.Price, order.Volume, oppositeTree.BestPriceOrder.Type, oppositeTree.BestPriceOrder.ID, oppositeTree.BestPriceOrder.Price, oppositeTree.BestPriceOrder.Volume, tradeQty)
+		var bidOrder, askOrder *Order
+		if order.Type == BID {
+			bidOrder = order
+			askOrder = oppositeTree.BestPriceOrder
+		} else {
+			bidOrder = oppositeTree.BestPriceOrder
+			askOrder = order
+		}
+
+		err := ob.Broadcaster.BroadcastMessage(
+			&MatchEvent{
+				SymbolId:            ob.SymbolID,
+				BidOrder:            bidOrder,
+				AskOrder:            askOrder,
+				ExecutedTradeVolume: tradeQty,
+			},
+		)
+		if err != nil {
+			ob.logger.Error("Error in MatchOrder: %s\n", sl.Err(err))
+		}
+
+		//fmt.Printf("Matched %s order with price %f, volume %f and %s order id %s with price %f and volume %f trade volume %f \n", order.Type.String(), order.Price, order.Volume, oppositeTree.BestPriceOrder.Type.String(), oppositeTree.BestPriceOrder.ID, oppositeTree.BestPriceOrder.Price, oppositeTree.BestPriceOrder.Volume, tradeQty)
 
 		// Update volumes of both orders
 		order.Volume -= tradeQty
