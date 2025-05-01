@@ -7,6 +7,10 @@ const (
 	ASK
 )
 
+func (o OrderType) String() string {
+	return [...]string{"BID", "ASK"}[o]
+}
+
 type Order struct {
 	ID         string    `json:"id"`          // 16B
 	Price      float64   `json:"price"`       // 8B
