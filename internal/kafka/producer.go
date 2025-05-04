@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"log"
 	"log/slog"
 	"order-service/internal/lib/logger/sl"
 	"order-service/internal/orderbook"
@@ -106,7 +107,7 @@ func (p *Producer) CreateTopic(ctx context.Context, topic string, numPartitions 
 			p.logger.Info("Topic created successfully", "topic", topic)
 			return nil
 		case kafka.ErrTopicAlreadyExists:
-			p.logger.Info("Topic %s already exists", topic)
+			p.logger.Info("Topic already exists", "topic", topic)
 			return nil
 		default:
 			return fmt.Errorf("error ensuring topic: %s", result.Error.Code())
@@ -153,5 +154,7 @@ func (p *Producer) StartListeningWithHandler(handler DeliveryHandlerFunc) {
 }
 
 func (p *Producer) Flush(timeoutMs int) {
-	p.producer.Flush(timeoutMs)
+	if remain := p.producer.Flush(timeoutMs); remain > 0 {
+		log.Printf("WARNING: %d messages were not delivered", remain)
+	}
 }

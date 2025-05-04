@@ -16,6 +16,8 @@ import (
 	"order-service/models/api"
 	"os"
 	"os/signal"
+	"runtime"
+	"sync"
 	"syscall"
 	"time"
 
@@ -37,12 +39,18 @@ type SubscriptionMessage struct {
 }
 
 func main() {
+	var wg sync.WaitGroup
+
 	cfg := config.MustLoad()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	logger := setupLogger(cfg.Env)
 	logger.Info("Starting order matcher", "env", cfg.Env)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		logger.Info("shutting down")
+		cancel()
+	}()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
@@ -56,15 +64,19 @@ func main() {
 		cfg.Kafka.SSLPassword,
 	)
 	if err != nil {
-		log.Fatalf("Error creating Kafka producer: %s", err)
+		logger.Error("Error creating Kafka producer", "error", sl.Err(err))
+		// call runtime.Goexit() instead of log.Fatal (os.Exit()) so as to call deferred funcs
+		runtime.Goexit()
 	}
-	defer kafkaService.Close()
+	defer func() {
+		logger.Info("Start closing Kafka producer")
+		kafkaService.Close()
+		logger.Info("Closed Kafka producer")
+	}()
 
 	kafkaService.StartListeningWithHandler(func(message *kafka.Message) {
 		if message.TopicPartition.Error != nil {
 			logger.Error("Failed to deliver message: ", "topic", message.TopicPartition)
-		} else {
-			logger.Info("Delivered message to topic %s[%d] at offset %v: key = %-10s value = %s\n", *message.TopicPartition.Topic, message.TopicPartition.Partition, message.TopicPartition.Offset, string(message.Key), string(message.Value))
 		}
 	})
 
@@ -112,9 +124,13 @@ func main() {
 		logger.Info("Subscription sent")
 	}
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		<-stop
+		close(stop)
 		logger.Info("Gracefully stopping")
+		// Call cancel() to trigger ctx.Done() and initiate listeners to exit the processes
 		cancel()
 		err := ws.Close()
 		if err != nil {
@@ -122,7 +138,7 @@ func main() {
 		}
 		logger.Info("WebSocket stopped")
 		kafkaService.Flush(cfg.Kafka.FlushTimeoutMs)
-
+		logger.Info("Successfully flushed Kafka producer")
 	}()
 
 	reader := bufio.NewReader(ws)
@@ -149,6 +165,7 @@ func main() {
 		for {
 			select {
 			case <-ctx.Done():
+				logger.Info("Context cancelled, exiting stats loop...")
 				return
 			case <-timer.C:
 				addedCount, removedCount, matchCount := btcOrderBook.GetOrderStats()
@@ -186,9 +203,15 @@ func main() {
 		timer := time.NewTicker(5 * time.Second)
 		select {
 		case <-ctx.Done():
+			logger.Info("Context cancelled, exiting socket connection...")
+			close(messageChannel)
+			wg.Wait()
 			return
 		case <-timer.C:
 			logger.Warn("Warning: No data received for 5 seconds")
+			close(messageChannel)
+			wg.Wait()
+			return
 		default:
 			var orderMessage api.OrderBookMessage
 			err = decoder.Decode(&orderMessage)
