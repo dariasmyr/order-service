@@ -3,14 +3,30 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/mock"
+	"log/slog"
 	"order-service/internal/orderbook"
 	"os"
 	"testing"
 	"time"
 )
 
+type MockBroadcaster struct {
+	mock.Mock
+}
+
+func (m *MockBroadcaster) BroadcastMessage(event *orderbook.MatchEvent) error {
+	args := m.Called(event)
+	return args.Error(0)
+}
+
 func TestInsertSingleOrder(t *testing.T) {
-	ob := orderbook.NewOrderBook("BTC_USDT")
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 
 	// Insert a bid order
 	bidOrder := &orderbook.Order{
@@ -30,7 +46,12 @@ func TestInsertSingleOrder(t *testing.T) {
 }
 
 func TestInsertMultipleOrders(t *testing.T) {
-	ob := orderbook.NewOrderBook("BTC_USDT")
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 
 	// Insert a few bid orders
 	bidOrders := []*orderbook.Order{
@@ -49,7 +70,12 @@ func TestInsertMultipleOrders(t *testing.T) {
 }
 
 func TestOrderMatching(t *testing.T) {
-	ob := orderbook.NewOrderBook("BTC_USDT")
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 
 	// Insert bid orders
 	bidOrders := []*orderbook.Order{
@@ -82,7 +108,12 @@ func TestOrderMatching(t *testing.T) {
 }
 
 func TestInsertPassiveOrder(t *testing.T) {
-	ob := orderbook.NewOrderBook("BTC_USDT")
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 
 	// Insert bid orders
 	bidOrders := []*orderbook.Order{
@@ -118,7 +149,12 @@ func TestInsertPassiveOrder(t *testing.T) {
 }
 
 func TestRemoveOrder(t *testing.T) {
-	ob := orderbook.NewOrderBook("BTC_USDT")
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 
 	// Insert a bid order
 	bidOrder := &orderbook.Order{
@@ -141,7 +177,12 @@ func TestRemoveOrder(t *testing.T) {
 }
 
 func TestRedBlackTreeProperties(t *testing.T) {
-	ob := orderbook.NewOrderBook("BTC_USDT")
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 
 	// Insert a series of orders to test the balancing
 	orders := []*orderbook.Order{
@@ -170,7 +211,12 @@ func isBalanced(ob *orderbook.OrderBook) bool {
 }
 
 func TestEdgeCaseOrders(t *testing.T) {
-	ob := orderbook.NewOrderBook("BTC_USDT")
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 
 	// Insert an order with zero volume
 	zeroVolumeOrder := &orderbook.Order{
@@ -206,7 +252,12 @@ func TestEdgeCaseOrders(t *testing.T) {
 }
 
 func TestOrderBookUpdate(t *testing.T) {
-	ob := orderbook.NewOrderBook("AAPL")
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 
 	// Case 1: Adding a bid order
 	order1 := &orderbook.Order{
@@ -278,7 +329,12 @@ func TestOrderBookUpdate(t *testing.T) {
 }
 
 func TestPerformanceWithUpdate(t *testing.T) {
-	ob := orderbook.NewOrderBook("BTC_USDT")
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 
 	start := time.Now()
 
@@ -346,7 +402,12 @@ func TestPerformanceWithUpdate(t *testing.T) {
 }
 
 func TestPerformanceSimpleAdd(t *testing.T) {
-	ob := orderbook.NewOrderBook("BTC_USDT")
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 
 	start := time.Now()
 
@@ -407,7 +468,12 @@ func TestPerformanceRealData(t *testing.T) {
 		t.Fatalf("Failed to unmarshal JSON: %v", err)
 	}
 
-	ob := orderbook.NewOrderBook("COINBASE_SPOT_BCH_USD")
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 
 	numOrders := len(response.Asks) + len(response.Bids)
 
@@ -439,7 +505,12 @@ func TestPerformanceRealData(t *testing.T) {
 }
 
 func BenchmarkPerformanceWithUpdate(b *testing.B) {
-	ob := orderbook.NewOrderBook("BTC_USDT")
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 	numOrders := 275121
 	b.ResetTimer()
 
@@ -497,9 +568,14 @@ func BenchmarkPerformanceWithUpdate(b *testing.B) {
 func BenchmarkPerformanceSimpleAdd(b *testing.B) {
 	numOrders := 275121
 
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ob := orderbook.NewOrderBook("BTC_USDT")
+		ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 		for i := 0; i < numOrders; i++ {
 			order := &orderbook.Order{
 				ID:         fmt.Sprintf("order%d", i),
@@ -548,8 +624,13 @@ func BenchmarkPerformanceRealData(b *testing.B) {
 
 	b.ResetTimer()
 
+	mockBroadcaster := new(MockBroadcaster)
+	mockBroadcaster.On("BroadcastMessage", mock.AnythingOfType("*orderbook.MatchEvent")).Return(nil)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	for i := 0; i < b.N; i++ {
-		ob := orderbook.NewOrderBook("COINBASE_SPOT_BCH_USD")
+		ob := orderbook.NewOrderBook("BTC_USDT", logger, mockBroadcaster)
 
 		for _, order := range response.Asks {
 			order.UpdateType = "ADD"
